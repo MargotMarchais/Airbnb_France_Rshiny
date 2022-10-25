@@ -25,7 +25,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ### Loading R packages that will allow the connection to databases
 
 ```{r}
-library(readr)
 library(odbc) #Contains drivers to connect to a database
 library(DBI) #Contains functions for interacting with the database
 library(RSQL) #Generate and Process 'SQL' Queries in R

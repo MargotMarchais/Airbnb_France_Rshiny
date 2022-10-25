@@ -22,38 +22,7 @@ listings_Lyon <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Lyon/listi
 reviews_Lyon <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Lyon/reviews.csv", comment.char="#")
 calendar_Lyon <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Lyon/calendar.csv", comment.char="#")
 
-
-##############################
-# Build the SQL connection ###
-##############################
-
-con <- dbConnect(drv = RSQLite::SQLite(),
-                 dbname = ":memory:")
-
-dbListTables(con)
-
-# PARIS database
-dbWriteTable(conn = con, name = "reviews_Paris", value = reviews_Paris)
-dbWriteTable(conn = con, name = "listings_Paris", value = listings_Paris)
-dbWriteTable(conn = con, name = "calendar_Paris", value = calendar_Paris)
-rm("listings_Paris", "reviews_Paris", "calendar_Paris")
-
-# BORDEAUX
-dbWriteTable(conn = con, name = "reviews_Bordeaux", value = reviews_Bordeaux)
-dbWriteTable(conn = con, name = "listings_Bordeaux", value = listings_Bordeaux)
-dbWriteTable(conn = con, name = "calendar_Bordeaux", value = calendar_Bordeaux)
-rm("listings_Bordeaux", "reviews_Bordeaux", "calendar_Bordeaux")
-
-# LYON
-dbWriteTable(conn = con, name = "reviews_Lyon", value = reviews_Lyon)
-dbWriteTable(conn = con, name = "listings_Lyon", value = listings_Lyon)
-dbWriteTable(conn = con, name = "calendar_Lyon", value = calendar_Lyon)
-rm("listings_Lyon", "reviews_Lyon", "calendar_Lyon")
-
-
-# Free memory et afficher les tables disponibles
-gc()
-dbListTables(con)
+# Construire la table centrale
 
 
 ########################
@@ -63,13 +32,6 @@ dbListTables(con)
 # On veut voir la tête des données (que contiennent les colonnes)
 # On veut voir la distribution des variables -> on a des valeurs aberrantes ? Bcp de valeurs nulles ?
 
-query <- 
-  "SELECT * 
-  FROM listings_Paris 
-  LIMIT 10 ;"
-
-
-result = DBI::dbGetQuery(conn = con, statement = query)
 
 # Remarques personnelles sur les variables : 
 # ID : n° unique de l'annonce
@@ -84,21 +46,12 @@ result = DBI::dbGetQuery(conn = con, statement = query)
 # Caractéristiques de l'appart (nombre de lits, salles de bain, aménités, etc)
 # Prix
 
-query <- 
-  "SELECT * 
-  FROM reviews_Paris 
-  LIMIT 10 ;"
-result = DBI::dbGetQuery(conn = con, statement = query)
+
 
 # Listing ID et date : pour la jointure
 # reviewer id
 # Il manque les notes -> on a que le commentaire verbeux.... -> Il faudrait faire du text mining pour savoir si c'est positif ou négatif...
 
-query <- 
-  "SELECT * 
-  FROM calendar_Paris 
-  LIMIT 10 ;"
-result = DBI::dbGetQuery(conn = con, statement = query)
 
 # Permet de suivre au cours du temps l'évolution des prix d'une annonce -> Pas le plus intéressant
 
