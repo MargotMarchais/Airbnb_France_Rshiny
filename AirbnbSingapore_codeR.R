@@ -1,7 +1,7 @@
 # Import relevant packages
-library(odbc)
-library(DBI)
 library(dplyr)
+library(lubridate)
+
 
 #######################
 ### Import the data ###
@@ -49,7 +49,18 @@ gc()
 ########################
 
 # Metadata : nom des colonnes, leur type, nombre de lignes et colonnes
+str(calendar)
+str(reviews)
 str(listings) # Attention, tout a été importé en string
+
+# Transformation à opérer
+test = select(calendar, date) 
+
+
+%>% ymd()
+# Transformer les dates en date
+# Transformer les booléens
+# Transformer les formats dollars
 
 # Glimpse of the data: Ca ressemble à quoi
 
