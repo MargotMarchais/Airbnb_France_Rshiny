@@ -1,0 +1,49 @@
+---
+title: "AirbnbSingapore"
+author: "Margot MARCHAIS--MAURICE"
+date: '2022-10-23'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## INTRODUCTION
+
+Blablabla - Expliquer que le projet sera entièrement codé en SQL comme si les bases étaient chargées dans un Datawharehouse.
+Expliquer rapidement le business modèle d'Airbnb
+Inspiration pour me connecter à SQL depuis Rstudio :
+https://statisticsglobe.com/run-sql-query-r
+https://statisticsglobe.com/create-connect-database-r
+
+
+### Loading R packages that will allow the connection to databases
+```{r}
+library(readr)
+library(odbc) #Contains drivers to connect to a database
+library(DBI) #Contains functions for interacting with the database
+library(RSQL) #Generate and Process 'SQL' Queries in R
+library(RSQLite) #Can create an in-memory SQL database
+library(tidyverse) #Provides helpful functions and sample data to use in R
+```
+
+Set up the connection
+```{r}
+con <- DBI::dbConnect(drv = odbc::odbc(),
+                      Driver = "driver_name",
+                      Server = "server_url",
+                      Database = "database_name",
+                      user = "user", #optional
+                      password = "password") #optional
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
