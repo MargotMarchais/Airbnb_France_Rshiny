@@ -7,55 +7,43 @@ library(dplyr)
 ### Import the data ###
 #######################
 
-# Objective: For each city, the listings, reviews and calendar data are loaded in R workspace
-
-string = "~/Documents/Formation/Github/0_Data/"
+# Objective: For each city, the listings, reviews and calendar data are loaded
 
 # Paris
-listings_Paris <- read.csv(paste0(string, "Airbnb_Paris/listings.csv"), encoding="UTF-8", comment.char="#")
-reviews_Paris <- read.csv(paste0(string, "Airbnb_Paris/reviews.csv"), encoding="UTF-8", comment.char="#")
-calendar_Paris <- read.csv(paste0(string, "Airbnb_Paris/calendar.csv"), encoding="UTF-8", comment.char="#")
+listings_Paris <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Paris/listings.csv", comment.char="#")
+reviews_Paris <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Paris/reviews.csv", comment.char="#")
+calendar_Paris <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Paris/calendar.csv", comment.char="#")
 
 # Bordeaux
-listings_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/listings.csv"), encoding="UTF-8", comment.char="#")
-reviews_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/reviews.csv"), encoding="UTF-8", comment.char="#")
-calendar_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/calendar.csv"), encoding="UTF-8", comment.char="#")
+listings_Bordeaux <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Bordeaux/listings.csv", comment.char="#")
+reviews_Bordeaux <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Bordeaux/reviews.csv", comment.char="#")
+calendar_Bordeaux <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Bordeaux/calendar.csv", comment.char="#")
 
 # Lyon
-listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="UTF-8", comment.char="#")
-reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8", comment.char="#")
-calendar_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/calendar.csv"), encoding="UTF-8", comment.char="#")
+listings_Lyon <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Lyon/listings.csv", comment.char="#")
+reviews_Lyon <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Lyon/reviews.csv", comment.char="#")
+calendar_Lyon <- read.csv("~/Documents/Formation/Github/0_Data/Airbnb_Lyon/calendar.csv", comment.char="#")
 
 
 ################################
 ### BUILD A CENTRAL DATABASE ###
 ################################
 
-# Objective : Build a centralized dataset for listings, reviews and calendar
+# Objective : All city data are centralized in one database for each topic
 
 listings = rbind(listings_Paris, listings_Bordeaux, listings_Lyon)
-reviews = rbind(reviews_Paris, reviews_Bordeaux, reviews_Lyon)
-calendar = rbind(calendar_Paris, calendar_Bordeaux, calendar_Lyon)
+rm(listings_Paris, listings_Bordeaux, listings_Lyon)
 
-# Remove individual files to free memory
-rm(listings_Paris, listings_Bordeaux, listings_Lyon,
-   reviews_Paris, reviews_Bordeaux, reviews_Lyon,
-   calendar_Paris, calendar_Bordeaux, calendar_Lyon)
-gc()
+reviews = rbind(reviews_Paris, reviews_Bordeaux, reviews_Lyon)
+rm(reviews_Paris, reviews_Bordeaux, reviews_Lyon)
+
+calendar = rbind(calendar_Paris, calendar_Bordeaux, calendar_Lyon)
+rm(calendar_Paris, calendar_Bordeaux, calendar_Lyon)
 
 
 ########################
 ### DATA EXPLORATION ###
 ########################
-
-# Metadata : nom des colonnes, leur type, nombre de lignes et colonnes
-str(listings) # Attention, tout a été importé en string
-
-# Glimpse of the data: Ca ressemble à quoi
-
-#
-
-
 
 
 

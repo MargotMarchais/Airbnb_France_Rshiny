@@ -1,8 +1,11 @@
 ---
-title: "Exploring Airbnb data in 3 French ciities"
+title: "Exploring Airbnb data in 3 French cities"
 author: "Margot MARCHAIS--MAURICE"
 date: '2022-10-24'
-output: html_document
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -27,9 +30,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(odbc) #Contains drivers to connect to a database
 library(DBI) #Contains functions for interacting with the database
-library(RSQL) #Generate and Process 'SQL' Queries in R
-library(RSQLite) #Can create an in-memory SQL database
-library(tidyverse) #Provides helpful functions and sample data to use in R
+library(dplyr)
 ```
 
 Set up the connection
