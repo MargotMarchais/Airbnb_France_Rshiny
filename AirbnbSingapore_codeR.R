@@ -1,6 +1,7 @@
 # Import relevant packages
 library(dplyr)
 library(lubridate)
+library(ggplot2)
 
 
 #######################
@@ -44,9 +45,94 @@ rm(listings_Paris, listings_Bordeaux, listings_Lyon,
 gc()
 
 
-########################
-### DATA EXPLORATION ###
-########################
+#####################
+### DATA CLEANING ###
+#####################
+
+# Database "Listings"
+
+# Transformation colonnes au format date
+
+# Description du problème : Les fichiers csv ont mal été importés T_T
+# Raison : le séparateur de colonnes est une virgule et ça a l'air de foutre la merde, notamment au niveau de la colonne amenities
+# Solution: Je vise le quick win en priorité. Pour cela, je regarde si la plus grande partie de mon dataset est exploitable. Si c'est le cas, je jette le reste
+# Comment je me suis rendue compte du problème : en voulant transformer en dates des colonnes string (issues du csv) mais erreur de R (ça matche pas)
+
+
+# Note : Every variable has been converted to a string when csv imported
+str(listings)
+
+
+# Transform date columns into date format : It does not work because data is messy
+cols_date = c("last_scraped", "host_since", "calendar_last_scraped", "first_review", "last_review")
+listings[cols_date] = sapply(listings[cols_date], as.Date)
+
+# Pour cleaner, je cherche les colonnes au format bizarre 
+suspicious_data = listings %>% mutate(nb_char = nchar(last_scraped)) %>% filter(nb_char > 10)
+suspicious_data %>% glimpse()
+
+# J'ai ca 6000 observations sur 89000 qui sont à jeter (environ 6% échantillon) -> je jète
+listings_clean = listings %>% mutate(nb_char = nchar(last_scraped)) %>% filter(nb_char <= 10)
+cols_date = c("last_scraped", "host_since")
+listings_clean[cols_date] = sapply(listings_clean[cols_date], as.Date)
+#Résultat : succès !!!
+
+# Autres règles : je vire les lignes où mon URL ne commence par http
+  # J'identifie ca 10 000 lignes -> Là encore, je les vire
+suspicious_data2 = listings_clean %>% 
+  mutate(url_link = startsWith(listing_url, 'http'),
+         url2 = startsWith(picture_url, 'http')) %>%
+  filter(url_link == FALSE)
+
+listings_clean = listings_clean %>% 
+  mutate(url_link = startsWith(listing_url, 'http'),
+         url2 = startsWith(picture_url, 'http')) %>%
+  filter(url_link == TRUE & url2 == TRUE)
+# Il me reste 73 000 lignes au lieu de 89 000
+
+
+####################
+### SEGMENTATION ###
+####################
+
+# Objectifs : 
+
+## Comprendre l'offre : 
+# Combien d'annonces ? Comment sont-elles réparties entre les 3 villes FR ? Et dans quels quartiers ?
+# Quelle saisonnalité : le week-end ? l'été ? est-ce qu'on a plus d'annonces à ce moment là ?
+# Quelle fourchette de prix ?
+# Quels quartiers ?
+# Combien de pièces ? salles de bain ?
+# Pour quelle période de temps ?
+# Amenities ?
+# Pour combien de temps ?
+# Review scores : clean, accurate, checkin, comm', location
+
+
+## Comprendre les hosts :
+# Framework RFM : Recency, Frequency, Monetary, 1st transaction
+
+# Comprendre les guests : 
+# Des gens récidivistes ou des one-shots en France ?
+
+
+# Bonus : carte des annonces en utilisant la geoloc
+# en mettant en size le nombre d'annonces et en couleur le prix
+
+# Bonus : corrélation entre les reviews / la localisation et le prix
+
+
+## Comprendre les reviews
+# Questions : 
+# Combien d'hosts ? Combien ils louent d'apparts en moyenne ? (que des individuels ou des pros) ? A quel prix ?
+
+
+
+
+## Je transforme les colonnes booléennes en booléen
+
+
+
 
 # Metadata : nom des colonnes, leur type, nombre de lignes et colonnes
 str(calendar)
