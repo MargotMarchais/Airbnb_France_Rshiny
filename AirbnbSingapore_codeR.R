@@ -1,7 +1,9 @@
 # Import relevant packages
 library(dplyr)
-library(lubridate)
+library(lubridate) # ne sert à rien pour l'instant
+library(stringr)
 library(ggplot2)
+
 
 
 #######################
@@ -13,19 +15,19 @@ library(ggplot2)
 string = "~/Documents/Formation/Github/0_Data/"
 
 # Paris
-listings_Paris <- read.csv(paste0(string, "Airbnb_Paris/listings.csv"), encoding="UTF-8", comment.char="#")
-reviews_Paris <- read.csv(paste0(string, "Airbnb_Paris/reviews.csv"), encoding="UTF-8", comment.char="#")
-calendar_Paris <- read.csv(paste0(string, "Airbnb_Paris/calendar.csv"), encoding="UTF-8", comment.char="#")
+listings_Paris <- read.csv(paste0(string, "Airbnb_Paris/listings.csv"), encoding="UTF-8")
+reviews_Paris <- read.csv(paste0(string, "Airbnb_Paris/reviews.csv"), encoding="UTF-8")
+calendar_Paris <- read.csv(paste0(string, "Airbnb_Paris/calendar.csv"), encoding="UTF-8")
 
 # Bordeaux
-listings_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/listings.csv"), encoding="UTF-8", comment.char="#")
-reviews_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/reviews.csv"), encoding="UTF-8", comment.char="#")
-calendar_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/calendar.csv"), encoding="UTF-8", comment.char="#")
+listings_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/listings.csv"), encoding="UTF-8")
+reviews_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/reviews.csv"), encoding="UTF-8")
+calendar_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/calendar.csv"), encoding="UTF-8")
 
 # Lyon
-listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="UTF-8", comment.char="#")
-reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8", comment.char="#")
-calendar_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/calendar.csv"), encoding="UTF-8", comment.char="#")
+listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="UTF-8")
+reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8")
+calendar_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/calendar.csv"), encoding="UTF-8")
 
 
 ################################
@@ -45,50 +47,49 @@ rm(listings_Paris, listings_Bordeaux, listings_Lyon,
 gc()
 
 
-#####################
-### DATA CLEANING ###
-#####################
+########################
+### DATA PREPARATION ###
+########################
 
 # Database "Listings"
-
-# Transformation colonnes au format date
-
-# Description du problème : Les fichiers csv ont mal été importés T_T
-# Raison : le séparateur de colonnes est une virgule et ça a l'air de foutre la merde, notamment au niveau de la colonne amenities
-# Solution: Je vise le quick win en priorité. Pour cela, je regarde si la plus grande partie de mon dataset est exploitable. Si c'est le cas, je jette le reste
-# Comment je me suis rendue compte du problème : en voulant transformer en dates des colonnes string (issues du csv) mais erreur de R (ça matche pas)
-
 
 # Note : Every variable has been converted to a string when csv imported
 str(listings)
 
 
-# Transform date columns into date format : It does not work because data is messy
-cols_date = c("last_scraped", "host_since", "calendar_last_scraped", "first_review", "last_review")
-listings[cols_date] = sapply(listings[cols_date], as.Date)
+# Transform date columns into date format
+# Remarque : A optimiser, par l'usage de fonctions ????
+str(listings)
 
-# Pour cleaner, je cherche les colonnes au format bizarre 
-suspicious_data = listings %>% mutate(nb_char = nchar(last_scraped)) %>% filter(nb_char > 10)
-suspicious_data %>% glimpse()
+listings <-listings %>%
+  mutate(host_since = ymd(host_since),
+         calendar_last_scraped = ymd(calendar_last_scraped),
+         first_review = ymd(first_review),
+         last_review = ymd(last_review))
 
-# J'ai ca 6000 observations sur 89000 qui sont à jeter (environ 6% échantillon) -> je jète
-listings_clean = listings %>% mutate(nb_char = nchar(last_scraped)) %>% filter(nb_char <= 10)
-cols_date = c("last_scraped", "host_since")
-listings_clean[cols_date] = sapply(listings_clean[cols_date], as.Date)
-#Résultat : succès !!!
+# Tranformer les % en floats
+  # Le signe % fait que c'est interprété comme du texte
+listings$host_response_rate <-gsub("%","", listings$host_response_rate)
+listings$host_acceptance_rate <-gsub("%","", listings$host_acceptance_rate)
+listings$host_response_rate = as.numeric(listings$host_response_rate_nb) /100
+listings$host_acceptance_rate = as.numeric(listings$host_acceptance_rate_nb) /100
 
-# Autres règles : je vire les lignes où mon URL ne commence par http
-  # J'identifie ca 10 000 lignes -> Là encore, je les vire
-suspicious_data2 = listings_clean %>% 
-  mutate(url_link = startsWith(listing_url, 'http'),
-         url2 = startsWith(picture_url, 'http')) %>%
-  filter(url_link == FALSE)
+#Transformer les scores en variables numériques
+# Je veux m'assurer que toutes les lignes sont exprimées en $
+listings %>% filter(!grepl('$', price)) #ça ne renvoie aucun résultat -> OK on peut retirer le signe dollar
+listings$price <- as.numeric(str_sub(listings$price, 2, -2))
 
-listings_clean = listings_clean %>% 
-  mutate(url_link = startsWith(listing_url, 'http'),
-         url2 = startsWith(picture_url, 'http')) %>%
-  filter(url_link == TRUE & url2 == TRUE)
-# Il me reste 73 000 lignes au lieu de 89 000
+# Transformer les variables booléennes en flags
+listings = listings %>% 
+  mutate(instant_bookable = case_when(instant_bookable=='f' ~ 0, instant_bookable=='t' ~ 1),
+         has_availability = case_when(has_availability=='f' ~ 0, has_availability=='t' ~ 1),
+         host_identity_verified = case_when(host_identity_verified=='f' ~ 0, host_identity_verified=='t' ~ 1),
+         host_has_profile_pic = case_when(host_has_profile_pic=='f' ~ 0, host_has_profile_pic=='t' ~ 1)
+         )
+  
+#Transformer facteurs
+host_response_time
+
 
 
 ####################
