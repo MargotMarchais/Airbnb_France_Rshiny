@@ -1,6 +1,6 @@
 # Import relevant packages
 library(dplyr)
-library(lubridate) # ne sert ‡ rien pour l'instant
+library(lubridate) 
 library(stringr)
 library(ggplot2)
 
@@ -29,6 +29,11 @@ listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="
 reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8")
 calendar_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/calendar.csv"), encoding="UTF-8")
 
+# Add the data source in a column
+listings_Paris = listings_Paris %>% mutate(city = 'Paris')
+listings_Bordeaux = listings_Bordeaux %>% mutate(city = 'Bordeaux')
+listings_Lyon = listings_Lyon %>% mutate(city = 'Lyon')
+
 
 ################################
 ### BUILD A CENTRAL DATABASE ###
@@ -47,22 +52,18 @@ rm(listings_Paris, listings_Bordeaux, listings_Lyon,
 gc()
 
 
-########################
-### DATA PREPARATION ###
-########################
+#######################
+### DATA STRUCTURES ###
+#######################
 
-# Database "Listings"
-
-# Note : Every variable has been converted to a string when csv imported
+# Structure: Database "Listings"
 str(listings)
-
 
 # Transform date columns into date format
 # Remarque : A optimiser, par l'usage de fonctions ????
-str(listings)
-
 listings <-listings %>%
   mutate(host_since = ymd(host_since),
+         last_scraped = ymd(last_scraped),
          calendar_last_scraped = ymd(calendar_last_scraped),
          first_review = ymd(first_review),
          last_review = ymd(last_review))
@@ -71,8 +72,8 @@ listings <-listings %>%
   # Le signe % fait que c'est interprÈtÈ comme du texte
 listings$host_response_rate <-gsub("%","", listings$host_response_rate)
 listings$host_acceptance_rate <-gsub("%","", listings$host_acceptance_rate)
-listings$host_response_rate = as.numeric(listings$host_response_rate_nb) /100
-listings$host_acceptance_rate = as.numeric(listings$host_acceptance_rate_nb) /100
+listings$host_response_rate = as.numeric(listings$host_response_rate) /100
+listings$host_acceptance_rate = as.numeric(listings$host_acceptance_rate) /100
 
 #Transformer les scores en variables numÈriques
 # Je veux m'assurer que toutes les lignes sont exprimÈes en $
@@ -84,11 +85,42 @@ listings = listings %>%
   mutate(instant_bookable = case_when(instant_bookable=='f' ~ 0, instant_bookable=='t' ~ 1),
          has_availability = case_when(has_availability=='f' ~ 0, has_availability=='t' ~ 1),
          host_identity_verified = case_when(host_identity_verified=='f' ~ 0, host_identity_verified=='t' ~ 1),
-         host_has_profile_pic = case_when(host_has_profile_pic=='f' ~ 0, host_has_profile_pic=='t' ~ 1)
+         host_has_profile_pic = case_when(host_has_profile_pic=='f' ~ 0, host_has_profile_pic=='t' ~ 1),
+         host_is_superhost = case_when(host_is_superhost=='f' ~ 0, host_is_superhost=='t' ~ 1),
          )
   
-#Transformer facteurs
-host_response_time
+#Transformer facteurs les variables categories
+listings$host_response_time = as.factor(listings$host_response_time)
+listings$room_type = as.factor(listings$room_type)
+listings$property_type = as.factor(listings$property_type)
+listings_table = as.data.frame(table(listings$room_type, listings$property_type))
+
+#CrÈer des ID en strings (on ne les somme pas, ce sont des IDs!)
+listings$id = as.character(listings$id)
+listings$host_id = as.character(listings$host_id)
+
+# Base de donnÈes reviews
+reviews$date = ymd(reviews$date)
+reviews$year = year(reviews$date)
+
+########################
+### DATA PREPARATION ###
+########################
+
+# Objectif: Je veux explorer les donnÈes Listings sous Rshiny, avec un dashboard reactif
+summary(listings)
+
+# KPI n∞1 : Ordres de grandeur : Nombre total d'annonces, nombre total d'hÙtes, 
+BAN_listings = listings %>% 
+  summarise(nb_listings = n(),
+            nb_hosts = n_distinct(host_id),
+            nb_cities = n_distinct(city))
+
+BAN_reviews = reviews %>% 
+  filter(year=='2021') %>%
+  summarise(nb_reviews = n(),
+            nb_reviewers = n_distinct(reviewer_id))
+
 
 
 
@@ -112,6 +144,8 @@ host_response_time
 
 ## Comprendre les hosts :
 # Framework RFM : Recency, Frequency, Monetary, 1st transaction
+# qui sont ceux qui n'ont pas leur ID vÈrifiÈe : ceux qui ont rejoint rÈcemment la plateforme
+# Analyse de cohorte
 
 # Comprendre les guests : 
 # Des gens rÈcidivistes ou des one-shots en France ?
@@ -130,36 +164,21 @@ host_response_time
 
 
 
-## Je transforme les colonnes boolÈennes en boolÈen
-
-
-
-
-# Metadata : nom des colonnes, leur type, nombre de lignes et colonnes
-str(calendar)
-str(reviews)
-str(listings) # Attention, tout a ÈtÈ importÈ en string
-
-# Transformation ‡ opÈrer
-test = select(calendar, date) 
-
-
-%>% ymd()
-# Transformer les dates en date
-# Transformer les boolÈens
-# Transformer les formats dollars
-
-# Glimpse of the data: Ca ressemble ‡ quoi
-
-#
 
 
 
 
 
-# On veut voir la t√™te des donn√©es (que contiennent les colonnes)
-# On veut voir la distribution des variables -> on a des valeurs aberrantes ? Bcp de valeurs nulles ?
+# Questions : 
+# Combien d'hosts ? Combien ils louent d'apparts en moyenne ? (que des individuels ou des pros) ? A quel prix ?
 
+
+# BAN :  
+# VOLUME : Calculer le nombre de listings 
+# VOLUME : Nombre de reviews
+# VOLUME : Nombre d'hÙtes
+# VALEUR : Prix / revenus 
+# Comparaison en % selon la pÈriode retenue
 
 # Remarques personnelles sur les variables : 
 # ID : n¬∞ unique de l'annonce
@@ -173,30 +192,4 @@ test = select(calendar, date)
 # latitude et longitude
 # Caract√©ristiques de l'appart (nombre de lits, salles de bain, am√©nit√©s, etc)
 # Prix
-
-
-
-# Listing ID et date : pour la jointure
-# reviewer id
-# Il manque les notes -> on a que le commentaire verbeux.... -> Il faudrait faire du text mining pour savoir si c'est positif ou n√©gatif...
-
-
-# Permet de suivre au cours du temps l'√©volution des prix d'une annonce -> Pas le plus int√©ressant
-
-
-# Questions : 
-# Combien d'hosts ? Combien ils louent d'apparts en moyenne ? (que des individuels ou des pros) ? A quel prix ?
-
-
-
-
-# But de l'√©tude : 
-# 1) D√©montrer mes comp√©tences en SQL
-  # Me servir uniquement de requ√™tes SQL utilisant la syntaxe suivante : MIN, MAX, COUNT, SUM, COUNT DISTINCT
-  # Utiliser des op√©rateurs avanc√©s : WHERE, HAVING, PARTITION BY, QUALIFY ROW, DENSE_RANK etc
-  # Utiliser des jointures et des UNION
-# 2) Montrer mes comp√©tences √† explorer les donn√©es : recherche de doublons, extraire des insights, etc
-# 3) Peut √™tre faire une segmentation sous R des annonces
-
-
  
