@@ -3,6 +3,8 @@ library(dplyr)
 library(lubridate) 
 library(stringr)
 library(ggplot2)
+library(tm)  
+library(wordcloud)  
 
 
 
@@ -132,15 +134,21 @@ listings_summary = listings %>%
   mutate(city_neighbourhood_cleansed = paste(city, "-", neighbourhood_cleansed))
 listings_summary = as.data.frame(listings_summary)
 
+#Focus : Wordcloud
+text <- listings$amenities
+docs <- Corpus(VectorSource(text))
+ docs <- docs %>%
+   tm_map(removeNumbers) %>%
+   tm_map(removePunctuation) %>%
+   tm_map(stripWhitespace)
+dtm <- TermDocumentMatrix(docs) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+df = df %>% filter(freq >20)
+rm(text, docs, dtm, matrix, words)
+gc()
 
-
-ggplot(data = listings, aes(x="accommodates", fill = "accommodates")) +
-  stat_count() + 
-  theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="right") 
-
-
-ggplot(listings, aes(x=city, y= beds, fill = city)) + geom_boxplot()
-ggplot(listings, aes(x=city, y= bedrooms, fill = city)) + geom_boxplot()
 
 #Choses à faire : 
 # Ordonner le top N

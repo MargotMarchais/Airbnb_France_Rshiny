@@ -14,12 +14,14 @@ library(htmltools)
 library(shiny)
 require(shinydashboard)
 library(ggplot2)
+library(ggvis)
 library(ggmosaic)
 require(scales)
 library(binr)
 library(tidyr)
-library(ggvis)
 library(dplyr)
+library(tm)  
+library(wordcloud)  
 if (FALSE) {
   library(RSQLite)
   library(dbplyr)}
@@ -85,27 +87,7 @@ server = function(input, output) {
   
   ### 1.2. Overview graphs ###
   
-  # Graph n°1: Combien d'annonces par.... (année, ville, quartier, type de propriété, etc)
-  # output$bar_chart <- renderPlot({
-  #   ggplot(data = listings, aes_string(x = input$x, group = input$y, color=input$z)) +
-  #     geom_bar(stat = "count") 
-  # }, width = 800)
-   # output$nb_listings_city <- renderPlot({
-   #   ggplot(data = listings_per_city, aes_string(x = "city", y = "nb_listings", fill="room_type")) +
-   #     geom_bar(stat = "identity") + 
-   #     theme_bw(base_size = 10) + theme(legend.position="top") +
-   #     geom_text(aes(label = nb_listings), vjust = 2 ) +
-   #     labs(x = "City", y = "Number of listings")
-   # })
-   # 
-   # output$nb_hosts_city <- renderPlot({
-   #   ggplot(data = hosts_per_city, aes_string(x = "city", y = "nb_hosts", fill="room_type")) +
-   #     geom_bar(stat = "identity") + 
-   #     theme_bw(base_size = 10) + theme(legend.position="top") +
-   #     geom_text(aes(label = nb_hosts), vjust = 2 ) +
-   #     labs(x = "City", y = "Number of hosts")
-   # })
-   # 
+
 
   ###############################
   # 2. LISTINGS CHARACTERISTICS #
@@ -150,76 +132,18 @@ server = function(input, output) {
       labs(x = "City", y= "Number of guests the listing can accommodate", title = "")
   }) 
   
-
+  #Wordcloud: Description of the amenities
+  output$amenities_wordcloud <- renderPlot({ 
+  wordcloud(words = df$word, freq = df$freq, min.freq = 20, 
+            max.words=100, random.order=FALSE, rot.per=0.35, 
+            colors=brewer.pal(8, "Dark2"))
+  }) 
+      
   
   
-  # # QUANTITIES COLUMN #
-  # 
-  # # output$type_share_quantities = renderInfoBox({
-  # #   lower_bound = input$year[1]
-  # #   upper_bound = input$year[2]
-  # #   year_tot = overview_types %>% filter(year <= upper_bound & year >= lower_bound)
-  # #   cluster_types = overview_types %>% filter(year <= upper_bound & year >= lower_bound & Type == input$Type)
-  # #   total_quantities = sum(year_tot$total_sales_quantities)
-  # #   share_cluster = sum(cluster_types$total_sales_quantities) / total_quantities
-  # #   infoBox("Share of quantities",paste0(format(round(share_cluster*100),big.mark = ","), "%"), 
-  # #           color = "purple", fill = TRUE)
-  # #   
-  # # })
-  # 
-  # output$type_total_quantities = renderInfoBox({
-  #   lower_bound = input$year[1]
-  #   upper_bound = input$year[2]
-  #   df = overview_types [which(overview_types$year <= upper_bound & overview_types$year >= lower_bound & overview_types$Type == input$Type),] 
-  #   infoBox(
-  #     "Sold quantities", paste0(format(comma(sum(df$total_sales_quantities)))), "units",
-  #     color = "purple", icon = icon("cart-arrow-down")
-  #   )
-  # })
-  # 
-  # output$type_average_quantities = renderInfoBox({
-  #   lower_bound = input$year[1]
-  #   upper_bound = input$year[2]
-  #   df = overview_types [which(overview_types$year <= upper_bound & overview_types$year >= lower_bound & overview_types$Type == input$Type),] 
-  #   infoBox(
-  #     "Average quantity per purchase", paste0(format(comma(mean(df$avg_number_quantities_per_purchase)))), "units",
-  #     color = "purple", icon = icon("boxes")
-  #   )
-  # })
-  # 
-  # 
-  # # REVENUES COLUMN #
-  # 
-  # output$type_share_amount = renderInfoBox({
-  #   lower_bound = input$year[1]
-  #   upper_bound = input$year[2]
-  #   year_tot = overview_types %>% filter(year <= upper_bound & year >= lower_bound)
-  #   cluster_types = overview_types %>% filter(year <= upper_bound & year >= lower_bound & Type == input$Type)
-  #   total_revenues = sum(year_tot$total_seller_sales_ttc_euro)
-  #   share_cluster = sum(cluster_types$total_seller_sales_ttc_euro) / total_revenues
-  #   infoBox("Share of amount",paste0(format(round(share_cluster*100),big.mark = ","), "%"),
-  #           color = "blue", fill = TRUE)
-  # })
-  # 
-  # output$type_total_amount = renderInfoBox({
-  #   lower_bound = input$year[1]
-  #   upper_bound = input$year[2]
-  #   df = overview_types [which(overview_types$year <= upper_bound & overview_types$year >= lower_bound & overview_types$Type == input$Type),] 
-  #   infoBox(
-  #     "Sales Revenues", paste0(format(comma(sum(df$total_seller_sales_ttc_euro)))), "euro",
-  #     color = "purple", icon = icon("euro")
-  #   )
-  # })
-  # 
-  # output$type_average_amount = renderInfoBox({
-  #   lower_bound = input$year[1]
-  #   upper_bound = input$year[2]
-  #   df = overview_types [which(overview_types$year <= upper_bound & overview_types$year >= lower_bound & overview_types$Type == input$Type),] 
-  #   infoBox(
-  #     "Mean price", paste0(format(comma(mean(df$mean_price_eur), na.rm=TRUE))), "euro",
-  #     color = "purple", icon = icon("coins")
-  #   )
-  # })
+  ############################
+  # 3. HOSTS CHARACTERISTICS #
+  ############################
   
   
   
@@ -261,13 +185,20 @@ sidebar = dashboardSidebar(
               #             selected = "city")
               #,
               menuItem(text = "Overview", tabName = "gen_fig"),
-              menuItem(text = "Listings focus", tabName ="listings_characteristics")
+              menuItem(text = "Listings", tabName ="listings_characteristics"),
+              menuItem(text = "Map", tabName ="map"),
+              menuItem(text = "Hosts segmentation", tabName ="hosts_segmentation"),
+              menuItem(text = "Review scores", tabName ="SATCLI"),
+              menuItem(text = "Pricing", tabName ="pricing")
+              
   )
 )
 
 #BODY--------------------
 body = dashboardBody(
   tabItems(
+    
+    # Overview page contains...
     tabItem(
       tabName = 'gen_fig',
       fluidRow(
@@ -277,26 +208,18 @@ body = dashboardBody(
         infoBoxOutput("nb_cities"),
         infoBoxOutput("avg_price"),
         infoBoxOutput("avg_satcli"),
-        
-        # box(
-        #   title = "Number of Airbnb hosts per city", status = "primary",
-        #   plotOutput("nb_hosts_city")
-        # ),
-        # box(
-        #   title = "Number of Airbnb listings per city", status = "primary",
-        #   plotOutput("nb_listings_city")
-        # )
-        
       )
     ),
     
-     tabItem(
-       tabName = "listings_characteristics",
+    # listings page contains...
+    tabItem(
+      tabName = "listings_characteristics",
        fluidRow(
          plotOutput("nb_listings_city", width = NULL,height = 350),
          plotOutput("top_neighbo", width = NULL,height = 350),
          plotOutput("listings_mosaic", width = NULL,height = 350),
-         plotOutput("nb_accom", width = NULL,height = 700)
+         #plotOutput("nb_accom", width = NULL,height = 700),
+         plotOutput("amenities_wordcloud", width = NULL),
          # selectInput(inputId = "Type", "Product Category Type",
          #             choices =unique(overview_types$Type),
          #             selected = "Bio"),
@@ -307,8 +230,40 @@ body = dashboardBody(
          #        infoBoxOutput("type_average_quantities", width = NULL)
          #)
        )
-
-     )
+     ),
+    
+    # Hosts segmentation page contains...
+    tabItem(
+      tabName = "hosts_segmentation",
+      fluidRow(
+        "Nothing here yet"
+      )
+    ),
+    
+    # Map page contains...
+    tabItem(
+      tabName = "map",
+      fluidRow(
+        "Nothing here yet"
+      )
+    ),
+    
+    # SATCLI page contains...
+    tabItem(
+      tabName = "SATCLI",
+      fluidRow(
+        "Nothing here yet"
+      )
+    ),
+    
+    # pricing page contains...
+    tabItem(
+      tabName = "pricing",
+      fluidRow(
+        "Nothing here yet"
+      )
+    )  
+    
     
   )
 )
