@@ -6,9 +6,9 @@ library(ggplot2)
 
 
 
-#######################
-### Import the data ###
-#######################
+##########################
+### 1. Import the data ###
+##########################
 
 # Objective: For each city, the listings, reviews and calendar data are loaded in R workspace
 
@@ -35,9 +35,9 @@ listings_Bordeaux = listings_Bordeaux %>% mutate(city = 'Bordeaux')
 listings_Lyon = listings_Lyon %>% mutate(city = 'Lyon')
 
 
-################################
-### BUILD A CENTRAL DATABASE ###
-################################
+###################################
+### 2. BUILD A CENTRAL DATABASE ###
+###################################
 
 # Objective : Build a centralized dataset for listings, reviews and calendar
 
@@ -52,9 +52,9 @@ rm(listings_Paris, listings_Bordeaux, listings_Lyon,
 gc()
 
 
-#######################
-### DATA STRUCTURES ###
-#######################
+##########################
+### 3. DATA STRUCTURES ###
+##########################
 
 # Structure: Database "Listings"
 str(listings)
@@ -103,23 +103,49 @@ listings$host_id = as.character(listings$host_id)
 reviews$date = ymd(reviews$date)
 reviews$year = year(reviews$date)
 
-########################
-### DATA PREPARATION ###
-########################
+
+
+###########################
+### 4. DATA PREPARATION ###
+###########################
 
 # Objectif: Je veux explorer les données Listings sous Rshiny, avec un dashboard reactif
 summary(listings)
 
-# KPI n°1 : Ordres de grandeur : Nombre total d'annonces, nombre total d'hôtes, 
+# 4.1 BANS / ordres de grandeur
 BAN_listings = listings %>% 
   summarise(nb_listings = n(),
             nb_hosts = n_distinct(host_id),
-            nb_cities = n_distinct(city))
+            nb_cities = n_distinct(city),
+            avg_satcli = round(mean(review_scores_rating, na.rm = TRUE),2),
+            avg_price = round(mean(price, na.rm = TRUE),2))
 
 BAN_reviews = reviews %>% 
   filter(year=='2021') %>%
   summarise(nb_reviews = n(),
             nb_reviewers = n_distinct(reviewer_id))
+
+# 4.2. Listings charactertistics
+listings_summary = listings %>% 
+  group_by(city, room_type, property_type, neighbourhood_cleansed, accommodates, bedrooms) %>%
+  summarise(nb_listings_charac = n()) %>%
+  mutate(city_neighbourhood_cleansed = paste(city, "-", neighbourhood_cleansed))
+listings_summary = as.data.frame(listings_summary)
+
+
+
+ggplot(data = listings, aes(x="accommodates", fill = "accommodates")) +
+  stat_count() + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="right") 
+
+
+ggplot(listings, aes(x=city, y= beds, fill = city)) + geom_boxplot()
+ggplot(listings, aes(x=city, y= bedrooms, fill = city)) + geom_boxplot()
+
+#Choses à faire : 
+# Ordonner le top N
+# Harmoniser les couleurs
+# Rajouter les inputs
 
 
 
