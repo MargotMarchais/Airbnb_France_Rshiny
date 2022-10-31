@@ -135,6 +135,14 @@ listings_summary = listings %>%
   mutate(city_neighbourhood_cleansed = paste(city, "-", neighbourhood_cleansed))
 listings_summary = as.data.frame(listings_summary)
 
+listings$property_type_clean = gsub("Private room in","", listings$property_type)
+listings = listings %>% 
+  mutate(accommodates_bins = case_when(accommodates <3 ~ "[1;2]",
+                                       accommodates>= 3 & accommodates<= 5 ~ "[3;5]",
+                                       accommodates>= 6 & accommodates<= 9 ~ "[6;9]",
+                                       accommodates>= 10 ~ "[More than 9]")
+  )
+
 #Focus : Wordcloud
 text <- listings$amenities
 docs <- Corpus(VectorSource(text))
@@ -150,6 +158,25 @@ df <- data.frame(word = names(words),freq=words)
 df = df %>% filter(freq >50)
 rm(text, docs, dtm, matrix, words)
 gc()
+
+# Brainstorming pricing
+
+  
+
+  
+listings_entire = listings %>% filter(room_type == "Private room")
+ggplot(listings_entire, aes(x=city, y=price, fill=property_type_clean)) + 
+  geom_boxplot() +
+  facet_wrap(~property_type_clean, scale="free")
+
+# Boxplot: Price vs City
+ggplot(listings, aes(x=city, y=price, fill=city)) + 
+  geom_boxplot() 
+
+ggplot(data = (listings %>% filter(accommodates!=0)) , aes(x=city, y=price)) + 
+  geom_boxplot() +
+  facet_wrap(~accommodates_bins)
+
 
 
 #Choses à faire : 

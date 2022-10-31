@@ -152,9 +152,41 @@ server = function(input, output) {
   ############################
   # 3. HOSTS CHARACTERISTICS #
   ############################
+
+  
+  
+  ##########################
+  # 4. GUESTS SATISFACTION #
+  ##########################  
   
   
   
+  ##############
+  # 5. PRICING #
+  ############## 
+  
+  # Pricing by city
+  output$pricing_city <- renderPlot({
+  ggplot(listings, aes(x=city, y=price, fill=city)) + 
+    geom_boxplot() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+    labs(x = "City", y= "Price ($)", title = "Without much surprise, \n Paris is the most expensive French city")
+  }) 
+  
+  # Pricing by number of accommodates
+  output$pricing_accom <- renderPlot({
+    ggplot(data = (listings %>% filter(accommodates!=0)) , aes(x=city, y=price)) + 
+      geom_boxplot() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
+      facet_wrap(~accommodates_bins) +
+      labs(x = "City", y= "Price ($)", title = "The higher the number of accommodates, \n the higher the price (and the variation in prices)")
+  }) 
+  
+  
+  
+  ##########
+  # 6. MAP #
+  ########## 
 }
 
 
@@ -197,7 +229,9 @@ sidebar = dashboardSidebar(
               menuItem(text = "Map", tabName ="map"),
               menuItem(text = "Hosts segmentation", tabName ="hosts_segmentation"),
               menuItem(text = "Review scores", tabName ="SATCLI"),
-              menuItem(text = "Pricing", tabName ="pricing")
+              menuItem(text = "Pricing", tabName ="pricing"),
+              menuItem(text = "About", tabName = "about")
+
               
   )
 )
@@ -227,11 +261,15 @@ body = dashboardBody(
          column(width = 6,
                 box(width = NULL, background = 'red', "Listings by geography"),
                 strong("Insights:"),
-                p("In late 2022, Paris, Lyon and Bordeaux accounted for 83,000 Airbnb listings. 
-                  The French capital represented the vast majority of listings (i.e. 75%). It had indeed 6x times more Airbnb listings than any other big French city.
+                p("In late 2022, Paris, Lyon and Bordeaux had about 83,000 Airbnb listings. 
+                  The French capital accounted for the vast majority of listings (i.e. 75%). It had indeed 6x times more Airbnb listings than any other big French city.
                   Lyon (500,000 inhabitants) and Bordeaux (250,000 inhabitants) had the same amount of listings (ca. 11,000), although Lyon is much bigger than Bordeaux."),
                 plotOutput("nb_listings_city", width = NULL,height = 350),
                 br(),
+                strong("Insights:"),
+                p("Not all Paris neighbourhoods are equally represented in Airbnb listings.
+                  Indeed, 4 out of the 5 neighbourhoods with the most listings are situated in Paris 'Rive droite' (i.e. north of the Seine river).
+                  Such arrondissements are usually more lively than South of Paris, and may be very touristic (e.g. Butte Montmartre is very famous due to the Sacré Coeur Basilica)."),
                 plotOutput("top_neighbo", width = NULL,height = 350),
                 br()
          ),
@@ -239,12 +277,13 @@ body = dashboardBody(
                 box(width = NULL, background = 'red', "Listings types"),
                 strong("Insights:"),
                 p("In every city, hosts mostly rent their entire apartment or house. This is especially true in Paris (82% of listings vs 75% in Bordeaux or Lyon).
-                  The second most common choice is the private room. On the other hand, shared rooms and hotel rooms are not not popular options at all."),
-                br(),
+                  The second most common choice is the private room. On the other hand, shared rooms and hotel rooms are not not popular options at all on the Airbnb platform in France."),
                 plotOutput("listings_mosaic", width = NULL,height = 350),
                 br(),
                 strong("Insights:"),
-                p("Wifi connection and safety ('alarm') are the amenities "),
+                p("The wordcloud indicates that amenities very often mention the Wifi connection and safety elements (smoke alarm). 
+                  Hosts also emphasize services that are usually not available in hotels,
+                  such as long-term stays or useful household appliances (oven, dryer, washer, iron, coffee machine, etc)"),
                 #plotOutput("nb_accom", width = NULL,height = 700),
                 plotOutput("amenities_wordcloud", width = NULL, height = 500),
                 br()
@@ -289,9 +328,37 @@ body = dashboardBody(
     tabItem(
       tabName = "pricing",
       fluidRow(
-        "Nothing here yet"
+        column(width = 6,
+               box(width = NULL, background = 'red', "Pricing by city"),
+               strong("Insights:"),
+               p("The median price of a listing in Paris is $100 (against $70 for Bordeaux or Lyon).
+                 The mean price is also higher: $142 in Paris (against $101 and $92 for Bordeaux and Lyon respectively).
+                 Indeed, Paris is the French capital and it attracts millions of tourists every year. Therefore, prices may reflect the high demand."),
+               plotOutput("pricing_city", width = NULL,height = 350),
+               br(),
+               strong("Insights:"),
+               p("As the number of accommodates increases, the price of listings tend to increase as well (this statement applies to all cities).
+                 Indeed, for max 2 accommodates, the median price is around $50 in Bordeaux and Lyon ($80 in Paris). 
+                 For groups of 10 and more, the median price reaches $350 in Bordeaux ($375 in Lyon and $466 in Paris). 
+                 Moreover, prices tend to be more spread out as the number of accommodates increases, whereas the distribution is much more narrow for a small number of guests."),
+               plotOutput("pricing_accom", width = NULL,height = 350),
+               br()
+        )
       )
-    )  
+    ),
+    
+    # About page contains...
+    tabItem(
+      tabName = "about",
+      fluidRow(
+        column(width = 6,
+               box(width = NULL, background = 'red', "Credits"),
+               p("Data source: InsideAirbnb.com"),
+               p("Data analysis and Rshiny app design: Margot MARCHAIS--MAURICE")
+        )
+        
+      )
+    )
     
     
   )
