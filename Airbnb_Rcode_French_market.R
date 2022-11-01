@@ -143,6 +143,26 @@ listings = listings %>%
                                        accommodates>= 10 ~ "[More than 9]")
   )
 
+# 4.3 Most and least expensive listings
+most_expensive = listings %>% 
+  group_by(property_type) %>% 
+  summarise(median_price = median(price, na.rm = TRUE),
+            avg_price = round(mean(price, na.rm =TRUE),2),
+            nb_listings = n()
+  ) %>%
+  arrange(desc(avg_price)) %>%
+  slice(1:5)
+
+least_expensive = listings %>% 
+  group_by(property_type) %>% 
+  summarise(median_price = median(price, na.rm = TRUE),
+            avg_price = round(mean(price, na.rm =TRUE),2),
+            nb_listings = n()
+  ) %>%
+  arrange(avg_price) %>%
+  slice(1:5)
+
+
 #Focus : Wordcloud
 text <- listings$amenities
 docs <- Corpus(VectorSource(text))
@@ -159,23 +179,13 @@ df = df %>% filter(freq >50)
 rm(text, docs, dtm, matrix, words)
 gc()
 
-# Brainstorming pricing
 
   
+#####################
+# DESIGNING THE MAP #
+#####################
 
-  
-listings_entire = listings %>% filter(room_type == "Private room")
-ggplot(listings_entire, aes(x=city, y=price, fill=property_type_clean)) + 
-  geom_boxplot() +
-  facet_wrap(~property_type_clean, scale="free")
 
-# Boxplot: Price vs City
-ggplot(listings, aes(x=city, y=price, fill=city)) + 
-  geom_boxplot() 
-
-ggplot(data = (listings %>% filter(accommodates!=0)) , aes(x=city, y=price)) + 
-  geom_boxplot() +
-  facet_wrap(~accommodates_bins)
 
 
 

@@ -24,6 +24,7 @@ require(shinydashboard)
 library(ggplot2)
 library(ggvis)
 library(ggmosaic)
+library(leaflet)
 require(scales)
 library(binr)
 library(tidyr)
@@ -175,11 +176,37 @@ server = function(input, output) {
   
   # Pricing by number of accommodates
   output$pricing_accom <- renderPlot({
-    ggplot(data = (listings %>% filter(accommodates!=0)) , aes(x=city, y=price)) + 
+    ggplot(data = (listings %>% filter(accommodates!=0)) , aes(x=city, y=price, fill = city)) + 
       geom_boxplot() +
       theme(plot.title = element_text(hjust = 0.5, face = "bold")) +
       facet_wrap(~accommodates_bins) +
       labs(x = "City", y= "Price ($)", title = "The higher the number of accommodates, \n the higher the price (and the variation in prices)")
+  }) 
+  
+  #Most expensive (top 5)
+  output$most_expens <- renderPlot({
+    ggplot(most_expensive, 
+           aes(x= reorder(property_type, avg_price), y = avg_price, fill = "red")) +
+      geom_col() +
+      coord_flip() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="none") +
+      geom_text(    aes(label = after_stat(y), group = property_type), 
+                    stat = 'summary', fun = sum, hjust = +2) +
+      labs(x = "Property type", y= "Average price ($)", 
+           title = "The scarcity of exceptional or historic properties \n make them the most expensive")
+  }) 
+  
+  #Least expensive (bottom 5)
+  output$least_expens <- renderPlot({
+    ggplot(least_expensive, 
+           aes(x= reorder(property_type, avg_price), y = avg_price, fill = "red")) +
+      geom_col() +
+      coord_flip() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="none") +
+      geom_text(    aes(label = after_stat(y), group = property_type), 
+                    stat = 'summary', fun = sum, hjust = +2) +
+      labs(x = "Property type", y= "Average price ($)", 
+           title = "Shared rooms and makeshift homes \n are the least expensive listings on Airbnb")
   }) 
   
   
@@ -187,6 +214,71 @@ server = function(input, output) {
   ##########
   # 6. MAP #
   ########## 
+  
+  output$mymap <- renderLeaflet({
+    
+    data<- reactive({
+     x <- listings[listings$number_of_reviews>= input$nb_reviews_range[1] & listings$nb_number_of_reviews <= input$reviews_range[2],]
+    })
+     
+    bins <- c(0, 100, 150, 200, 250, Inf)
+    pal <- colorBin("YlOrRd", domain = input$nb_reviews_range, bins = bins)
+    
+    
+    tag.map.title <- tags$style(HTML("
+                                     .leaflet-control.map-title {
+                                     transform: translate(-50%,20%);
+                                     position: fixed !important;
+                                     left: 10%;
+                                     text-align: center;
+                                     padding-left: 10px;
+                                     padding-right: 10px;
+                                     background: rgba(255,255,255,0.75);
+                                     font-weight: bold;
+                                     font-size: 20px;
+                                     }
+                                     "))
+    
+    title <- tags$div(
+      tag.map.title, HTML("Airbnb listings in Paris")
+    )  
+    
+    #listings <- data()
+    
+    m <- leaflet(data = listings %>% filter(city=="Paris" & price != "NA")) %>%
+      addTiles() %>%
+      fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
+      addCircleMarkers(lng = ~longitude,
+                       lat = ~latitude,
+                       radius = ~number_of_reviews/70, #Display correctly listings
+                       fillColor = ~pal(price),
+                       weight = 0.01,
+                       opacity = 1,
+                       color = "black",
+                       dashArray = "1",
+                       fillOpacity = 0.7,
+                       popup = paste("<h3> Listings info </h3>",
+                                     "Listings name: ", listings$name,"<br>",
+                                      "Property type: ", listings$property_type,"<br>",
+                                      "Neighbourhood: ", listings$neighbourhood_cleansed, "<br>",
+                                      "Price: ", listings$price, "<br>",
+                                      "Accommodates: ", listings$accommodates, "<br>",
+                                      "Total reviews: ", listings$number_of_reviews, "<br>",
+                                      "Review scores: ", listings$review_scores_rating, "<br>",
+                                      "Host is superhost: ", listings$host_is_superhost, "<br>"
+                       )
+    ) %>%
+      addControl(title, position = "topright", className="map-title")
+    
+    # Print the map
+    m
+    
+    # Add the color legend
+    m %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($) - excluding service and cleaning fees",
+                     position = "bottomleft")
+  
+  })
+  
 }
 
 
@@ -262,12 +354,12 @@ body = dashboardBody(
                 box(width = NULL, background = 'red', "Listings by geography"),
                 strong("Insights:"),
                 p("In late 2022, Paris, Lyon and Bordeaux had about 83,000 Airbnb listings. 
-                  The French capital accounted for the vast majority of listings (i.e. 75%). It had indeed 6x times more Airbnb listings than any other big French city.
-                  Lyon (500,000 inhabitants) and Bordeaux (250,000 inhabitants) had the same amount of listings (ca. 11,000), although Lyon is much bigger than Bordeaux."),
+                  The French capital accounted for the vast majority of listings (i.e. 75%). It had namely 6x times more Airbnb listings than any other big French city.
+                  On the other hand, Lyon (500,000 inhabitants) and Bordeaux (250,000 inhabitants) had the same amount of listings (ca. 11,000), although Lyon is much bigger than Bordeaux."),
                 plotOutput("nb_listings_city", width = NULL,height = 350),
                 br(),
                 strong("Insights:"),
-                p("Not all Paris neighbourhoods are equally represented in Airbnb listings.
+                p("Not all Paris neighbourhoods are as equally represented in Airbnb listings.
                   Indeed, 4 out of the 5 neighbourhoods with the most listings are situated in Paris 'Rive droite' (i.e. north of the Seine river).
                   Such arrondissements are usually more lively than South of Paris, and may be very touristic (e.g. Butte Montmartre is very famous due to the Sacré Coeur Basilica)."),
                 plotOutput("top_neighbo", width = NULL,height = 350),
@@ -276,14 +368,14 @@ body = dashboardBody(
          column(width = 6,
                 box(width = NULL, background = 'red', "Listings types"),
                 strong("Insights:"),
-                p("In every city, hosts mostly rent their entire apartment or house. This is especially true in Paris (82% of listings vs 75% in Bordeaux or Lyon).
-                  The second most common choice is the private room. On the other hand, shared rooms and hotel rooms are not not popular options at all on the Airbnb platform in France."),
+                p("In every city, hosts usually rent their entire apartment or house. This is especially true in Paris (82% of listings vs 75% in Bordeaux or Lyon).
+                  The second most common choice is the private room. As far as shared rooms and hotel rooms are concerned, they are not not popular options at all on the Airbnb platform in France."),
                 plotOutput("listings_mosaic", width = NULL,height = 350),
                 br(),
                 strong("Insights:"),
-                p("The wordcloud indicates that amenities very often mention the Wifi connection and safety elements (smoke alarm). 
+                p("The wordcloud indicates that listings amenities very often mention the Wifi connection and safety elements (smoke alarm). 
                   Hosts also emphasize services that are usually not available in hotels,
-                  such as long-term stays or useful household appliances (oven, dryer, washer, iron, coffee machine, etc)"),
+                  such as long-term stays or useful household appliances (oven, dryer, washer, iron, refrigerator, coffee machine, etc)"),
                 #plotOutput("nb_accom", width = NULL,height = 700),
                 plotOutput("amenities_wordcloud", width = NULL, height = 500),
                 br()
@@ -312,7 +404,13 @@ body = dashboardBody(
     tabItem(
       tabName = "map",
       fluidRow(
-        "Nothing here yet"
+        p(HTML('&nbsp;'), "Map: Paris"),
+        leafletOutput("mymap"),
+         absolutePanel(top =1, right = 1,
+                     sliderInput("nb_reviews_range", "Total number of reviews",
+                                 min(listings$number_of_reviews), max(listings$number_of_reviews),
+                                 value=range(listings$number_of_reviews), step=100)
+        )
       )
     ),
     
@@ -328,12 +426,14 @@ body = dashboardBody(
     tabItem(
       tabName = "pricing",
       fluidRow(
+        p("Disclaimer: the price information in the underlying data does not include service and cleaning fees, so the total bill may be even higher."),
         column(width = 6,
-               box(width = NULL, background = 'red', "Pricing by city"),
+               box(width = NULL, background = 'red', "Pricing vs listings characteristics"),
                strong("Insights:"),
-               p("The median price of a listing in Paris is $100 (against $70 for Bordeaux or Lyon).
-                 The mean price is also higher: $142 in Paris (against $101 and $92 for Bordeaux and Lyon respectively).
+               p("The median price of a listing in Paris is $100 (against $70 in Bordeaux and Lyon).
+                 The mean price is also higher: $142 in Paris (against $101 and $92 in Bordeaux and Lyon respectively).
                  Indeed, Paris is the French capital and it attracts millions of tourists every year. Therefore, prices may reflect the high demand."),
+               br(),
                plotOutput("pricing_city", width = NULL,height = 350),
                br(),
                strong("Insights:"),
@@ -342,6 +442,24 @@ body = dashboardBody(
                  For groups of 10 and more, the median price reaches $350 in Bordeaux ($375 in Lyon and $466 in Paris). 
                  Moreover, prices tend to be more spread out as the number of accommodates increases, whereas the distribution is much more narrow for a small number of guests."),
                plotOutput("pricing_accom", width = NULL,height = 350),
+               br()
+        ),
+        column(width = 6,
+               box(width = NULL, background = 'red', "Pricing: Top 5 vs Bottom 5"),
+               strong("Insights:"),
+               p("Listings price seems to follow the law of supply and demand. 
+                  For instance, scarce properties such as French castles and historical gites tend to be very pricy.
+                  Rooms in Parisian boutique hotels are also very expensive: they usually offer an exceptional location in Paris, luxurious family suites,...
+                 Finally, the top 3 property types seem to be typos / outliers or even suspicious listings (an ice dome in central Paris ?!)."),
+               plotOutput("most_expens", width = NULL,height = 350),
+               br(),
+               strong("Insights:"),
+               p("Having some privacy and room for oneself costs money. Therefore, the least expensive listings on Airbnb involve shared rooms or even makeshift homes (tents, tipi, windmills)"),
+               br(),
+               br(),
+               br(),
+               br(),
+               plotOutput("least_expens", width = NULL,height = 350),
                br()
         )
       )
@@ -354,7 +472,8 @@ body = dashboardBody(
         column(width = 6,
                box(width = NULL, background = 'red', "Credits"),
                p("Data source: InsideAirbnb.com"),
-               p("Data analysis and Rshiny app design: Margot MARCHAIS--MAURICE")
+               p("Data analysis and Rshiny app design: Margot MARCHAIS--MAURICE"),
+               p("For further technical details, please visit: https://github.com/MargotMarchais/Airbnb_France_Rstudio")
         )
         
       )
