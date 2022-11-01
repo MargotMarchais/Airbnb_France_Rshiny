@@ -211,46 +211,34 @@ server = function(input, output) {
   
   
   
-  ##########
-  # 6. MAP #
-  ########## 
+  ###########
+  # 6. MAPS #
+  ########### 
   
-  output$mymap <- renderLeaflet({
+  # Map Paris
+  output$map_Paris <- renderLeaflet({
     
+    # Reactive inputs (slider)
     data<- reactive({
-     x <- listings[listings$number_of_reviews>= input$nb_reviews_range[1] & listings$nb_number_of_reviews <= input$reviews_range[2],]
+     x <- listings_price[listings_price$price>= input$price_range[1] &
+                           listings_price$price <= input$price_range[2],
+                         ]
     })
      
-    bins <- c(0, 100, 150, 200, 250, Inf)
-    pal <- colorBin("YlOrRd", domain = input$nb_reviews_range, bins = bins)
+    # Legend of colors
+    bins <- c(0, 100, 200, 300, 400, Inf)
+    pal <- colorBin("YlOrRd", domain = listings_price$price, bins = bins)
     
+    # To allow data to be reactive
+    listings_price <- data()
     
-    tag.map.title <- tags$style(HTML("
-                                     .leaflet-control.map-title {
-                                     transform: translate(-50%,20%);
-                                     position: fixed !important;
-                                     left: 10%;
-                                     text-align: center;
-                                     padding-left: 10px;
-                                     padding-right: 10px;
-                                     background: rgba(255,255,255,0.75);
-                                     font-weight: bold;
-                                     font-size: 20px;
-                                     }
-                                     "))
-    
-    title <- tags$div(
-      tag.map.title, HTML("Airbnb listings in Paris")
-    )  
-    
-    #listings <- data()
-    
-    m <- leaflet(data = listings %>% filter(city=="Paris" & price != "NA")) %>%
+    # Map construction
+    m_paris <- leaflet(data = listings_price %>% filter(city=="Paris" & price != "NA")) %>%
       addTiles() %>%
       fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
       addCircleMarkers(lng = ~longitude,
                        lat = ~latitude,
-                       radius = ~number_of_reviews/70, #Display correctly listings
+                       radius = ~number_of_reviews/90, #Display correctly listings
                        fillColor = ~pal(price),
                        weight = 0.01,
                        opacity = 1,
@@ -258,26 +246,139 @@ server = function(input, output) {
                        dashArray = "1",
                        fillOpacity = 0.7,
                        popup = paste("<h3> Listings info </h3>",
-                                     "Listings name: ", listings$name,"<br>",
-                                      "Property type: ", listings$property_type,"<br>",
-                                      "Neighbourhood: ", listings$neighbourhood_cleansed, "<br>",
-                                      "Price: ", listings$price, "<br>",
-                                      "Accommodates: ", listings$accommodates, "<br>",
-                                      "Total reviews: ", listings$number_of_reviews, "<br>",
-                                      "Review scores: ", listings$review_scores_rating, "<br>",
-                                      "Host is superhost: ", listings$host_is_superhost, "<br>"
+                                     "Listings name: ", listings_price$name,"<br>",
+                                     "Listings URL: ", listings_price$listing_url, "<br>",
+                                      "Property type: ", listings_price$property_type,"<br>",
+                                      "Neighbourhood: ", listings_price$neighbourhood_cleansed, "<br>",
+                                      "Price: ", listings_price$price, "<br>",
+                                      "Accommodates: ", listings_price$accommodates, "<br>",
+                                      "Total reviews: ", listings_price$number_of_reviews, "<br>",
+                                      "Review scores: ", listings_price$review_scores_rating, "<br>",
+                                      "Host is superhost: ", listings_price$host_is_superhost, "<br>"
                        )
-    ) %>%
-      addControl(title, position = "topright", className="map-title")
+      )
     
     # Print the map
-    m
+    m_paris
     
     # Add the color legend
-    m %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($) - excluding service and cleaning fees",
+    m_paris %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($)",
                      position = "bottomleft")
   
   })
+  
+  
+  
+  # Map Bordeaux
+  output$map_Bordeaux <- renderLeaflet({
+    
+    # Reactive inputs (slider)
+    data<- reactive({
+      x <- listings_price[listings_price$price>= input$price_range[1] &
+                            listings_price$price <= input$price_range[2],
+      ]
+    })
+    
+    # Legend of colors
+    bins <- c(0, 100, 200, 300, 400, Inf)
+    pal <- colorBin("YlOrRd", domain = listings_price$price, bins = bins)
+    
+    # To allow data to be reactive
+    listings_price <- data()
+    
+    # Map construction
+    m_bordeaux <- leaflet(data = listings_price %>% filter(city=="Bordeaux" & price != "NA")) %>%
+      addTiles() %>%
+      addSearchOSM() %>%
+      addResetMapButton() %>%
+      fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
+      addCircleMarkers(lng = ~longitude,
+                       lat = ~latitude,
+                       radius = ~number_of_reviews/90, #Display correctly listings
+                       fillColor = ~pal(price),
+                       weight = 0.01,
+                       opacity = 1,
+                       color = "black",
+                       dashArray = "1",
+                       fillOpacity = 0.7,
+                       popup = paste("<h3> Listings info </h3>",
+                                     "Listings name: ", listings_price$name,"<br>",
+                                     "Listings URL: ", listings_price$listing_url, "<br>",
+                                     "Property type: ", listings_price$property_type,"<br>",
+                                     "Neighbourhood: ", listings_price$neighbourhood_cleansed, "<br>",
+                                     "Price: ", listings_price$price, "<br>",
+                                     "Accommodates: ", listings_price$accommodates, "<br>",
+                                     "Total reviews: ", listings_price$number_of_reviews, "<br>",
+                                     "Review scores: ", listings_price$review_scores_rating, "<br>",
+                                     "Host is superhost: ", listings_price$host_is_superhost, "<br>"
+                       )
+      )
+    
+    # Print the map
+    m_bordeaux
+    
+    # Add the color legend
+    m_bordeaux %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($) - excluding service and cleaning fees",
+                          position = "bottomleft")
+    
+  })
+  
+  
+  # Map Lyon
+  output$map_Lyon <- renderLeaflet({
+    
+    # Reactive inputs (slider)
+    data<- reactive({
+      x <- listings_price[listings_price$price>= input$price_range[1] &
+                            listings_price$price <= input$price_range[2],
+      ]
+    })
+    
+    # Legend of colors
+    bins <- c(0, 100, 200, 300, 400, Inf)
+    pal <- colorBin("YlOrRd", domain = listings_price$price, bins = bins)
+    
+    # To allow data to be reactive
+    listings_price <- data()
+    
+    # Map construction
+    m_lyon <- leaflet(data = listings_price %>% filter(city=="Lyon" & price != "NA")) %>%
+      addTiles() %>%
+      addSearchOSM() %>%
+      addResetMapButton() %>%
+      fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
+      addCircleMarkers(lng = ~longitude,
+                       lat = ~latitude,
+                       radius = ~number_of_reviews/100, #Display correctly listings
+                       fillColor = ~pal(price),
+                       weight = 0.01,
+                       opacity = 1,
+                       color = "black",
+                       dashArray = "1",
+                       fillOpacity = 0.7,
+                       popup = paste("<h3> Listings info </h3>",
+                                     "Listings name: ", listings_price$name,"<br>",
+                                     "Listings URL: ", listings_price$listing_url, "<br>",
+                                     "Property type: ", listings_price$property_type,"<br>",
+                                     "Neighbourhood: ", listings_price$neighbourhood_cleansed, "<br>",
+                                     "Price: ", listings_price$price, "<br>",
+                                     "Accommodates: ", listings_price$accommodates, "<br>",
+                                     "Total reviews: ", listings_price$number_of_reviews, "<br>",
+                                     "Review scores: ", listings_price$review_scores_rating, "<br>",
+                                     "Host is superhost: ", listings_price$host_is_superhost, "<br>"
+                       )
+      )
+    
+    # Print the map
+    m_lyon
+    
+    # Add the color legend
+    m_lyon %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($)",
+                             position = "bottomleft")
+    
+  })
+  
+  
   
 }
 
@@ -295,27 +396,6 @@ header = dashboardHeader(
 #SIDEBAR--------------------
 sidebar = dashboardSidebar(
   sidebarMenu(id = "tabs",
-              # sliderInput("year", "Year", min(g$year), max(g$year)+1,value=range(g$year),
-              #             step = 1),
-              
-              # Select variable for x-axis
-              # selectInput(inputId = "x", 
-              #             label = "Parameter 1:",
-              #             choices = c("city", "neighbourhood_cleansed", "property_type"), 
-              #             selected = "city"),
-              # 
-              # # Select variable for y-axis
-              # selectInput(inputId = "y", 
-              #             label = "Parameter 2:",
-              #             choices = c("id", "beds"), 
-              #             selected = "price"),
-              # 
-              # # Select variable for color
-              # selectInput(inputId = "z", 
-              #             label = "Color code:",
-              #             choices = c("city", "neighbourhood_cleansed", "property_type"), 
-              #             selected = "city")
-              #,
               menuItem(text = "Overview", tabName = "gen_fig"),
               menuItem(text = "Listings", tabName ="listings_characteristics"),
               menuItem(text = "Map", tabName ="map"),
@@ -376,18 +456,8 @@ body = dashboardBody(
                 p("The wordcloud indicates that listings amenities very often mention the Wifi connection and safety elements (smoke alarm). 
                   Hosts also emphasize services that are usually not available in hotels,
                   such as long-term stays or useful household appliances (oven, dryer, washer, iron, refrigerator, coffee machine, etc)"),
-                #plotOutput("nb_accom", width = NULL,height = 700),
                 plotOutput("amenities_wordcloud", width = NULL, height = 500),
                 br()
-         # selectInput(inputId = "Type", "Product Category Type",
-         #             choices =unique(overview_types$Type),
-         #             selected = "Bio"),
-         # column(width = 4,
-         #        box(width = NULL, background = 'blue', "Quantities"),
-         #        infoBoxOutput("type_share_quantities", width = NULL),
-         #        infoBoxOutput("type_total_quantities", width = NULL),
-         #        infoBoxOutput("type_average_quantities", width = NULL)
-         #)
        )
        )
      ),
@@ -404,13 +474,34 @@ body = dashboardBody(
     tabItem(
       tabName = "map",
       fluidRow(
-        p(HTML('&nbsp;'), "Map: Paris"),
-        leafletOutput("mymap"),
-         absolutePanel(top =1, right = 1,
-                     sliderInput("nb_reviews_range", "Total number of reviews",
-                                 min(listings$number_of_reviews), max(listings$number_of_reviews),
-                                 value=range(listings$number_of_reviews), step=100)
-        )
+        p(HTML('&nbsp;'), "Disclaimer: Please kindly wait for about 5 to 10 seconds so that Rshiny loads the maps.
+          Tip n°1: You may also open other tabs in Rshiny while waiting for the page to load."),
+        p(HTML('&nbsp;'), "Tip n°2: Select a range of prices ($) if you want to filter out some listings from the maps."),
+        br(),
+        column(width = 6,
+               box(width = NULL, background = 'red', "Map: Paris"),
+               absolutePanel(top =0.6, left = 0.1,
+                             sliderInput("price_range", "Price",
+                                         min(listings_price$price), max(listings_price$price),
+                                         value=range(listings_price$price), step=50)
+               ),
+               br(),
+               strong("Insights"),
+               p("Airbnb 'Paris' listings cover Paris 'intra muros' as well as the inner suburbs.
+               Inner suburbs are however underrepresented as far as pricy listings are considered (except in some post West suburban towns).
+               Indeed, the most expensive listings (red circles) tend to be located in very Central Paris, near the touristic spots (Champs-Elysees, Le Louvre, jardin des Tuileries, etc).
+               "),
+               leafletOutput("map_Paris")
+        ),
+        column(width = 6,
+               box(width = NULL, background = 'red', "Map: Lyon"),
+               br(),
+               strong("Insights"),
+               p("Compared to Paris, Lyon has very few listings with prices exceeding $200 (few red circles). 
+                 Moreover, the latter seem to be located in the West / South outskirts of Lyon, instead of being centralized in the heart of the city.
+                 "),
+               leafletOutput("map_Lyon")
+               )
       )
     ),
     
@@ -426,7 +517,7 @@ body = dashboardBody(
     tabItem(
       tabName = "pricing",
       fluidRow(
-        p("Disclaimer: the price information in the underlying data does not include service and cleaning fees, so the total bill may be even higher."),
+        p(HTML('&nbsp;'), "Disclaimer: the price information in the underlying data does not include service and cleaning fees, so the total bill may be even higher."),
         column(width = 6,
                box(width = NULL, background = 'red', "Pricing vs listings characteristics"),
                strong("Insights:"),

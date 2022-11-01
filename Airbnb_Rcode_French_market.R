@@ -185,7 +185,7 @@ gc()
 # DESIGNING THE MAP #
 #####################
 
-
+listings_price = listings %>% filter(price != "NA")
 
 
 
