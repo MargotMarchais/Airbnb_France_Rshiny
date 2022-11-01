@@ -25,6 +25,7 @@ library(ggplot2)
 library(ggvis)
 library(ggmosaic)
 library(leaflet)
+library(leaflet.extras)
 require(scales)
 library(binr)
 library(tidyr)
@@ -235,10 +236,12 @@ server = function(input, output) {
     # Map construction
     m_paris <- leaflet(data = listings_price %>% filter(city=="Paris" & price != "NA")) %>%
       addTiles() %>%
+      addSearchOSM() %>%
+      addResetMapButton() %>%
       fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
       addCircleMarkers(lng = ~longitude,
                        lat = ~latitude,
-                       radius = ~number_of_reviews/90, #Display correctly listings
+                       radius = ~number_of_reviews/40, #Display correctly listings
                        fillColor = ~pal(price),
                        weight = 0.01,
                        opacity = 1,
@@ -294,7 +297,7 @@ server = function(input, output) {
       fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
       addCircleMarkers(lng = ~longitude,
                        lat = ~latitude,
-                       radius = ~number_of_reviews/90, #Display correctly listings
+                       radius = ~number_of_reviews/30, #Display correctly listings
                        fillColor = ~pal(price),
                        weight = 0.01,
                        opacity = 1,
@@ -318,7 +321,7 @@ server = function(input, output) {
     m_bordeaux
     
     # Add the color legend
-    m_bordeaux %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($) - excluding service and cleaning fees",
+    m_bordeaux %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($)",
                           position = "bottomleft")
     
   })
@@ -349,7 +352,7 @@ server = function(input, output) {
       fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
       addCircleMarkers(lng = ~longitude,
                        lat = ~latitude,
-                       radius = ~number_of_reviews/100, #Display correctly listings
+                       radius = ~number_of_reviews/30, #Display correctly listings
                        fillColor = ~pal(price),
                        weight = 0.01,
                        opacity = 1,
@@ -398,10 +401,10 @@ sidebar = dashboardSidebar(
   sidebarMenu(id = "tabs",
               menuItem(text = "Overview", tabName = "gen_fig"),
               menuItem(text = "Listings", tabName ="listings_characteristics"),
-              menuItem(text = "Map", tabName ="map"),
+              menuItem(text = "Pricing", tabName ="pricing"),
+              menuItem(text = "Maps", tabName ="map"),
               menuItem(text = "Hosts segmentation", tabName ="hosts_segmentation"),
               menuItem(text = "Review scores", tabName ="SATCLI"),
-              menuItem(text = "Pricing", tabName ="pricing"),
               menuItem(text = "About", tabName = "about")
 
               
@@ -474,9 +477,9 @@ body = dashboardBody(
     tabItem(
       tabName = "map",
       fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: Please kindly wait for about 5 to 10 seconds so that Rshiny loads the maps.
-          Tip n°1: You may also open other tabs in Rshiny while waiting for the page to load."),
-        p(HTML('&nbsp;'), "Tip n°2: Select a range of prices ($) if you want to filter out some listings from the maps."),
+        p(HTML('&nbsp;'), "Disclaimer: Please kindly wait for about 10 seconds so that the maps can appear.
+          Tip: You may also open other tabs while waiting for the page to load."),
+        p(HTML('&nbsp;'), "Tip n°2: Select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
         br(),
         column(width = 6,
                box(width = NULL, background = 'red', "Map: Paris"),
@@ -487,8 +490,8 @@ body = dashboardBody(
                ),
                br(),
                strong("Insights"),
-               p("Airbnb 'Paris' listings cover Paris 'intra muros' as well as the inner suburbs.
-               Inner suburbs are however underrepresented as far as pricy listings are considered (except in some post West suburban towns).
+               p("Airbnb listings cover Paris 'intra muros' as well as the inner suburbs.
+               Inner suburbs are however underrepresented as far as expensive listings are considered (except in some post West suburban towns).
                Indeed, the most expensive listings (red circles) tend to be located in very Central Paris, near the touristic spots (Champs-Elysees, Le Louvre, jardin des Tuileries, etc).
                "),
                leafletOutput("map_Paris")
@@ -499,8 +502,17 @@ body = dashboardBody(
                strong("Insights"),
                p("Compared to Paris, Lyon has very few listings with prices exceeding $200 (few red circles). 
                  Moreover, the latter seem to be located in the West / South outskirts of Lyon, instead of being centralized in the heart of the city.
-                 "),
-               leafletOutput("map_Lyon")
+                 Finally, there are much fewer listings with many reviews associated (small circles)."),
+               br(),
+               leafletOutput("map_Lyon"),
+               br(),
+               box(width = NULL, background = 'red', "Map: Bordeaux"),
+               strong("Insights"),
+               p("As for Lyon, there are much few expensive listings than in Paris. 
+                 But, the Bordeaux market differs from the Lyon market on 2 aspects. 
+                 First, it seems that some listings in the central district receive many reviews - whereas Lyon listings tend to have less than 5 reviews on average.
+                 Secondly, the listings are much more spread out geographically: there are quite a lot Airbnb listings in the outskirts of Bordeaux."),
+               leafletOutput("map_Bordeaux")
                )
       )
     ),

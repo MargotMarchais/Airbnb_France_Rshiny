@@ -162,6 +162,8 @@ least_expensive = listings %>%
   arrange(avg_price) %>%
   slice(1:5)
 
+#Database excluding the few listings with no price specified
+listings_price = listings %>% filter(price != "NA")
 
 #Focus : Wordcloud
 text <- listings$amenities
@@ -181,11 +183,51 @@ gc()
 
 
   
-#####################
-# DESIGNING THE MAP #
-#####################
+######################
+# HOSTS SEGMENTATION #
+######################
 
-listings_price = listings %>% filter(price != "NA")
+# Dataset preparation: 
+test_segmentation = listings %>%
+  select(host_id, host_since, last_review, price, host_is_superhost, host_total_listings_count) %>%
+  filter(price != "NA",
+         host_is_superhost != "NA",
+         !is.na(host_since),
+         !is.na(last_review)) %>%
+  mutate(
+    length_relationship = as.numeric(difftime(Sys.Date(), test$host_since, units = "days")),
+    recency = as.numeric(difftime(Sys.Date(), test$last_review, units = "days"))
+  ) %>%
+  group_by(host_id) %>%
+  summarise(
+    length_relationship = max(as.integer(length_relationship))/365,
+    recency = min(recency),
+    monetary = mean(price, na.rm = TRUE),
+    host_is_superhost = max(host_is_superhost, na.rm=TRUE),
+    host_total_listings_count = max(host_total_listings_count, na.rm = TRUE))
+
+# Assign contact id as row names, remove id from data
+rownames(test_segmentation) = test_segmentation$host_id
+test_segmentation = test_segmentation[, -1]
+
+# Perform segmentation on standardized data
+k = kmeans(x = scale(test_segmentation), centers = 5, nstart = 50)
+
+# Print cluster size, standardized centers, and then un-standardized centers, one segment at a time
+print(k$size)
+print(k$centers)
+for (i in 1:5) {
+  print(colMeans(test_segmentation[k$cluster == i, ]))
+}
+gc()
+
+#Cluster 1 : Les professionnels -> arrivés relativement récemment sur la plateforme, revues récentes, beaucoup de listings
+#Cluster 2 : Les ambassadors 
+#Cluster 3 : Les early adopters
+#Cluster 4: Les nouveaux qui expérimentent la plateforme
+#Cluster 5: Les losts / particuliers
+  
+
 
 
 
