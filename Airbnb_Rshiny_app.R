@@ -155,7 +155,23 @@ server = function(input, output) {
   # 3. HOSTS CHARACTERISTICS #
   ############################
 
+  output$host_seg1 <- renderPlot({
+    ggplot(merged_data, 
+           aes(x=length_relationship_years, y=recency_months, alpha = 0.6, color = cut(cluster, c(1,2,3,4,5)))) + 
+      scale_color_manual(
+        name = "cluster",
+        values = c("(0,1]" = "hotpink",
+                   "(1,2]" = "azure4",
+                   "(2,3]" = "cornflowerblue",
+                   "(3,4]" = "chocolate1",
+                   "(4,5]" = "darkolivegreen1"
+        ),
+        labels = c("Hospitality professionals", "One shot hosts (lost)", "Early adopters", "Airbnb Ambassadors", "New hosts")) +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="none") +
+      labs(x= "Host since (years)", y="Last review (period, months)", title = "Length of relationship vs date last review") +
+      geom_point()
   
+  }) 
   
   ##########################
   # 4. GUESTS SATISFACTION #
@@ -469,7 +485,21 @@ body = dashboardBody(
     tabItem(
       tabName = "hosts_segmentation",
       fluidRow(
-        "Nothing here yet"
+        HTML('&nbsp;'),"In this tab, the Airbnb hosts are grouped into 5 different clusters thanks to an adapted RFM segmentation (Recency, Frequency, Monetary).
+                 The segmentation was performed thanks to the kmeans algorithm due to the size of the underlying data. It has 5 different variables as input:", br(),
+        HTML('&nbsp;'), tags$em("* Recency: "), "When was the last time the host received a customer review on one of his/her listings ? (in months)", br(),
+        HTML('&nbsp;'), tags$em("* Frequency: "),"How many reviews did the host receive in total?", br(),
+        HTML('&nbsp;'), tags$em("* Monetary: "), "What is the average price of a listing (excluding service and cleaning fees)?", br(),
+        HTML('&nbsp;'), tags$em("* The length of relationship: "), "For how long has the hosts been on Airbnb.com (in years) ?", br(),
+        HTML('&nbsp;'), tags$em("* Superhost status: "), "Has the host been awarded 'Superhost' by Airbnb?", br(), 
+        HTML('&nbsp;'),"In the scatterplots below, more than 53,000 hosts are represented with their relevant cluster in colors.", br(), br(),
+        box(width = NULL, background = 'red', "Segments characteristics"),
+        column(width = 6,
+               strong("Insights:"),
+               p("In the graph below, 3 clusters are distinctly identifiable. 
+                 The light green cluster depicts the New hosts"),
+               plotOutput("host_seg1", width = NULL,height = 350)
+        )
       )
     ),
     

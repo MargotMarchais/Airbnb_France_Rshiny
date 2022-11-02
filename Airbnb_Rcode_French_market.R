@@ -8,6 +8,8 @@ library(wordcloud)
 
 #setwd("~/Documents/Formation/Github/Airbnb_Database_Rstudio")
 
+#Disable scientific notation
+options(scipen=999)
 
 ##########################
 ### 1. Import the data ###
@@ -189,28 +191,30 @@ gc()
 
 # Dataset preparation: 
 test_segmentation = listings %>%
-  select(host_id, host_since, last_review, price, host_is_superhost, host_total_listings_count) %>%
+  select(host_id, host_since, last_review, price, host_is_superhost, number_of_reviews) %>%
   filter(price != "NA",
          host_is_superhost != "NA",
          !is.na(host_since),
          !is.na(last_review)) %>%
   mutate(
-    length_relationship = as.numeric(difftime(Sys.Date(), test$host_since, units = "days")),
-    recency = as.numeric(difftime(Sys.Date(), test$last_review, units = "days"))
+    length_relationship = as.numeric(difftime(Sys.Date(), host_since, units = "days")),
+    recency = as.numeric(difftime(Sys.Date(), last_review, units = "days"))
   ) %>%
   group_by(host_id) %>%
   summarise(
-    length_relationship = max(as.integer(length_relationship))/365,
-    recency = min(recency),
+    length_relationship_years = max(as.integer(length_relationship))/365,
+    recency_months = min(recency)/30,
     monetary = mean(price, na.rm = TRUE),
     host_is_superhost = max(host_is_superhost, na.rm=TRUE),
-    host_total_listings_count = max(host_total_listings_count, na.rm = TRUE))
+    number_of_reviews = sum(number_of_reviews, na.rm = TRUE)
+    )
 
 # Assign contact id as row names, remove id from data
 rownames(test_segmentation) = test_segmentation$host_id
 test_segmentation = test_segmentation[, -1]
 
 # Perform segmentation on standardized data
+set.seed(10)
 k = kmeans(x = scale(test_segmentation), centers = 5, nstart = 50)
 
 # Print cluster size, standardized centers, and then un-standardized centers, one segment at a time
@@ -219,8 +223,29 @@ print(k$centers)
 for (i in 1:5) {
   print(colMeans(test_segmentation[k$cluster == i, ]))
 }
+
+cluster = k[["cluster"]]
+merged_data = cbind(test_segmentation, cluster)
 gc()
 
+
+
+ggplot(merged_data, 
+       aes(x=number_of_reviews, y=host_is_superhost, alpha = 0.6, color = cut(cluster, c(1,2,3,4,5)))) + 
+  scale_color_manual(
+    name = "cluster",
+    values = c("(0,1]" = "hotpink",
+               "(1,2]" = "azure4",
+               "(2,3]" = "cornflowerblue",
+               "(3,4]" = "chocolate1",
+               "(4,5]" = "darkolivegreen1"
+    ),
+    labels = c("Hospitality professionals", "One shot hosts (lost)", "Early adopters", "Airbnb Ambassadors", "New hosts")
+  ) +
+  labs(x= "Host total reviews", y="Superhost") +
+  geom_point()
+         
+         
 #Cluster 1 : Les professionnels -> arrivés relativement récemment sur la plateforme, revues récentes, beaucoup de listings
 #Cluster 2 : Les ambassadors 
 #Cluster 3 : Les early adopters
