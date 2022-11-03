@@ -228,24 +228,36 @@ cluster = k[["cluster"]]
 merged_data = cbind(test_segmentation, cluster)
 gc()
 
+# Clusters colors
+couleurs = c("1" = "hotpink",
+             "2" = "darkgoldenrod1",
+             "3" = "blue4",
+             "4" = "chocolate4",
+             "5" = "chartreuse4")
 
 
-ggplot(merged_data, 
-       aes(x=number_of_reviews, y=host_is_superhost, alpha = 0.6, color = cut(cluster, c(1,2,3,4,5)))) + 
-  scale_color_manual(
-    name = "cluster",
-    values = c("(0,1]" = "hotpink",
-               "(1,2]" = "azure4",
-               "(2,3]" = "cornflowerblue",
-               "(3,4]" = "chocolate1",
-               "(4,5]" = "darkolivegreen1"
-    ),
-    labels = c("Hospitality professionals", "One shot hosts (lost)", "Early adopters", "Airbnb Ambassadors", "New hosts")
-  ) +
-  labs(x= "Host total reviews", y="Superhost") +
-  geom_point()
-         
-         
+
+# Tableau récap à afficher avant les graphes dans Rshiny (format tableau)
+seg_summary = merged_data %>% 
+  group_by(cluster) %>% 
+  summarize(nb_hosts = n(),
+            mean_length_relationship = round(mean(length_relationship_years),0),
+            mean_recency = round(mean(recency_months), 0),
+            mean_price = round(mean(monetary),0),
+            pct_superhosts = round(mean(host_is_superhost), 1),
+            mean_number_of_reviews = round(mean(number_of_reviews),0)) %>%
+  mutate(pct_hosts = round(nb_hosts / sum(nb_hosts),2))
+
+
+  
+
+  #relations à représenter : 
+  #Nombre de revues vs superhost 
+  #Nombre de revues vs recency
+  #Monetary vs nombre de revues
+
+  
+  
 #Cluster 1 : Les professionnels -> arrivés relativement récemment sur la plateforme, revues récentes, beaucoup de listings
 #Cluster 2 : Les ambassadors 
 #Cluster 3 : Les early adopters

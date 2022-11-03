@@ -157,21 +157,31 @@ server = function(input, output) {
 
   output$host_seg1 <- renderPlot({
     ggplot(merged_data, 
-           aes(x=length_relationship_years, y=recency_months, alpha = 0.6, color = cut(cluster, c(1,2,3,4,5)))) + 
+           aes(x=length_relationship_years, y=recency_months, colour = factor(cluster), fill = factor(cluster))) + 
       scale_color_manual(
         name = "cluster",
-        values = c("(0,1]" = "hotpink",
-                   "(1,2]" = "azure4",
-                   "(2,3]" = "cornflowerblue",
-                   "(3,4]" = "chocolate1",
-                   "(4,5]" = "darkolivegreen1"
-        ),
+        values = couleurs,
+        aesthetics = c("colour", "fill"),
         labels = c("Hospitality professionals", "One shot hosts (lost)", "Early adopters", "Airbnb Ambassadors", "New hosts")) +
-      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="none") +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="right") +
       labs(x= "Host since (years)", y="Last review (period, months)", title = "Length of relationship vs date last review") +
-      geom_point()
+      geom_point(alpha = 0.5)
   
   }) 
+  
+  output$host_seg2 <- renderPlot({
+  ggplot(merged_data, 
+         aes(x=monetary, y=number_of_reviews, colour = factor(cluster), fill = factor(cluster))) + 
+    scale_color_manual(
+      name = "cluster",
+      values = couleurs,
+      aesthetics = c("colour", "fill"),
+      labels = c("Hospitality professionals", "One shot hosts (lost)", "Early adopters", "Airbnb Ambassadors", "New hosts")) +
+    theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="right") +
+    labs(x= "Price ($)", y="Number of reviews", title = "Total number of reviews vs average listings price") +
+    geom_point(alpha = 0.5)
+  }) 
+    
   
   ##########################
   # 4. GUESTS SATISFACTION #
@@ -313,7 +323,7 @@ server = function(input, output) {
       fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
       addCircleMarkers(lng = ~longitude,
                        lat = ~latitude,
-                       radius = ~number_of_reviews/30, #Display correctly listings
+                       radius = ~number_of_reviews/40, #Display correctly listings
                        fillColor = ~pal(price),
                        weight = 0.01,
                        opacity = 1,
@@ -368,7 +378,7 @@ server = function(input, output) {
       fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude) )  %>%
       addCircleMarkers(lng = ~longitude,
                        lat = ~latitude,
-                       radius = ~number_of_reviews/30, #Display correctly listings
+                       radius = ~number_of_reviews/40, #Display correctly listings
                        fillColor = ~pal(price),
                        weight = 0.01,
                        opacity = 1,
@@ -452,27 +462,28 @@ body = dashboardBody(
          column(width = 6,
                 box(width = NULL, background = 'red', "Listings by geography"),
                 strong("Insights:"),
-                p("In late 2022, Paris, Lyon and Bordeaux had about 83,000 Airbnb listings. 
-                  The French capital accounted for the vast majority of listings (i.e. 75%). It had namely 6x times more Airbnb listings than any other big French city.
-                  On the other hand, Lyon (500,000 inhabitants) and Bordeaux (250,000 inhabitants) had the same amount of listings (ca. 11,000), although Lyon is much bigger than Bordeaux."),
+                p("In late 2022, Paris, Lyon and Bordeaux had about 83,000 Airbnb listings registered. 
+                  The French capital accounted for the vast majority of listings (i.e. 75%). It had namely 6x times more listings than any other big French city.
+                  On the other hand, Lyon (500,000 inhabitants) and Bordeaux (250,000 inhabitants) had the same amount of listings (ca. 11,000), although Lyon is a much bigger city than Bordeaux."),
                 plotOutput("nb_listings_city", width = NULL,height = 350),
                 br(),
                 strong("Insights:"),
                 p("Not all Paris neighbourhoods are as equally represented in Airbnb listings.
                   Indeed, 4 out of the 5 neighbourhoods with the most listings are situated in Paris 'Rive droite' (i.e. north of the Seine river).
-                  Such arrondissements are usually more lively than South of Paris, and may be very touristic (e.g. Butte Montmartre is very famous due to the Sacré Coeur Basilica)."),
+                  Such arrondissements are usually more lively than that of South of Paris, and may be very touristic (e.g. Butte Montmartre is very famous due to the Sacré Coeur Basilica)."),
                 plotOutput("top_neighbo", width = NULL,height = 350),
                 br()
          ),
          column(width = 6,
                 box(width = NULL, background = 'red', "Listings types"),
                 strong("Insights:"),
-                p("In every city, hosts usually rent their entire apartment or house. This is especially true in Paris (82% of listings vs 75% in Bordeaux or Lyon).
-                  The second most common choice is the private room. As far as shared rooms and hotel rooms are concerned, they are not not popular options at all on the Airbnb platform in France."),
+                p("Whatever the city considered, hosts usually rent their entire apartment or house. This is especially true in Paris (82% of listings vs 75% in Bordeaux or Lyon).
+                  The second most common choice is the private room. As far as shared rooms and hotel rooms are concerned, they do not seem to be popular options on Airbnb France"),
+                br(),
                 plotOutput("listings_mosaic", width = NULL,height = 350),
                 br(),
                 strong("Insights:"),
-                p("The wordcloud indicates that listings amenities very often mention the Wifi connection and safety elements (smoke alarm). 
+                p("The wordcloud indicates that amenities very often include a Wifi connection and safety elements (smoke alarm). 
                   Hosts also emphasize services that are usually not available in hotels,
                   such as long-term stays or useful household appliances (oven, dryer, washer, iron, refrigerator, coffee machine, etc)"),
                 plotOutput("amenities_wordcloud", width = NULL, height = 500),
@@ -497,8 +508,15 @@ body = dashboardBody(
         column(width = 6,
                strong("Insights:"),
                p("In the graph below, 3 clusters are distinctly identifiable. 
-                 The light green cluster depicts the New hosts"),
+                 The light blue cluster depicts the New hosts: They have been registered on the platform since maximum 5 years, and their last review tends to be recent.
+                 The hotpink cluster represents the Professionals who have been on the Airbnb for a very long time.
+                 The green cluster describes the Early Adopters that are still active nowadays: They registered more than 5 years ago and received reviews in the last few years."),
                plotOutput("host_seg1", width = NULL,height = 350)
+        ),
+        column(width = 6,
+               strong("Insights:"),
+               p("XXX"),
+               plotOutput("host_seg2", width = NULL,height = 350)
         )
       )
     ),
@@ -507,9 +525,8 @@ body = dashboardBody(
     tabItem(
       tabName = "map",
       fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: Please kindly wait for about 10 seconds so that the maps can appear.
-          Tip: You may also open other tabs while waiting for the page to load."),
-        p(HTML('&nbsp;'), "Tip n°2: Select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
+        p(HTML('&nbsp;'), "Disclaimer: Please kindly wait for about 10 seconds as the maps need time to load. You may also open other tabs while waiting for the page to load."),
+        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing. The color represents the price (in $). You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
         br(),
         column(width = 6,
                box(width = NULL, background = 'red', "Map: Paris"),
@@ -531,14 +548,14 @@ body = dashboardBody(
                br(),
                strong("Insights"),
                p("Compared to Paris, Lyon has very few listings with prices exceeding $200 (few red circles). 
-                 Moreover, the latter seem to be located in the West / South outskirts of Lyon, instead of being centralized in the heart of the city.
+                 Moreover, the latter seem to be located in the West outskirts of Lyon, instead of being centralized in the heart of the city.
                  Finally, there are much fewer listings with many reviews associated (small circles)."),
                br(),
                leafletOutput("map_Lyon"),
                br(),
                box(width = NULL, background = 'red', "Map: Bordeaux"),
                strong("Insights"),
-               p("As for Lyon, there are much few expensive listings than in Paris. 
+               p("As for Lyon, there are much fewer expensive listings in Bordeaux than in Paris. 
                  But, the Bordeaux market differs from the Lyon market on 2 aspects. 
                  First, it seems that some listings in the central district receive many reviews - whereas Lyon listings tend to have less than 5 reviews on average.
                  Secondly, the listings are much more spread out geographically: there are quite a lot Airbnb listings in the outskirts of Bordeaux."),
@@ -559,13 +576,13 @@ body = dashboardBody(
     tabItem(
       tabName = "pricing",
       fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: the price information in the underlying data does not include service and cleaning fees, so the total bill may be even higher."),
+        p(HTML('&nbsp;'), "Disclaimer: the price information in the underlying data is computed per night and usually does not include service and cleaning fees, so the guest may pay a higher price than the scraped price."),
         column(width = 6,
                box(width = NULL, background = 'red', "Pricing vs listings characteristics"),
                strong("Insights:"),
-               p("The median price of a listing in Paris is $100 (against $70 in Bordeaux and Lyon).
+               p("Paris is more expensive than Lyon and Bordeaux. Indeed, the median price of a listing in Paris is $100 (against $70 in Bordeaux and Lyon).
                  The mean price is also higher: $142 in Paris (against $101 and $92 in Bordeaux and Lyon respectively).
-                 Indeed, Paris is the French capital and it attracts millions of tourists every year. Therefore, prices may reflect the high demand."),
+                 This is not very surprising as Paris is the French capital: it attracts lots of students, professionals and millions of tourists every year. Therefore, prices may reflect the high demand."),
                br(),
                plotOutput("pricing_city", width = NULL,height = 350),
                br(),
