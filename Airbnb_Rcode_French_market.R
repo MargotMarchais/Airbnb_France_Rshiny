@@ -21,44 +21,24 @@ string = "~/Documents/Formation/Github/0_Data/"
 
 # Paris
 listings_Paris <- read.csv(paste0(string, "Airbnb_Paris/listings.csv"), encoding="UTF-8")
-reviews_Paris <- read.csv(paste0(string, "Airbnb_Paris/reviews.csv"), encoding="UTF-8")
-calendar_Paris <- read.csv(paste0(string, "Airbnb_Paris/calendar.csv"), encoding="UTF-8")
-
-# Bordeaux
 listings_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/listings.csv"), encoding="UTF-8")
-reviews_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/reviews.csv"), encoding="UTF-8")
-calendar_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/calendar.csv"), encoding="UTF-8")
-
-# Lyon
 listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="UTF-8")
-reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8")
-calendar_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/calendar.csv"), encoding="UTF-8")
 
 # Add the data source in a column
 listings_Paris = listings_Paris %>% mutate(city = 'Paris')
 listings_Bordeaux = listings_Bordeaux %>% mutate(city = 'Bordeaux')
 listings_Lyon = listings_Lyon %>% mutate(city = 'Lyon')
 
-
-###################################
-### 2. BUILD A CENTRAL DATABASE ###
-###################################
-
 # Objective : Build a centralized dataset for listings, reviews and calendar
-
 listings = rbind(listings_Paris, listings_Bordeaux, listings_Lyon)
-reviews = rbind(reviews_Paris, reviews_Bordeaux, reviews_Lyon)
-calendar = rbind(calendar_Paris, calendar_Bordeaux, calendar_Lyon)
 
 # Remove individual files to free memory
-rm(listings_Paris, listings_Bordeaux, listings_Lyon,
-   reviews_Paris, reviews_Bordeaux, reviews_Lyon,
-   calendar_Paris, calendar_Bordeaux, calendar_Lyon)
+rm(listings_Paris, listings_Bordeaux, listings_Lyon)
 gc()
 
 
 ##########################
-### 3. DATA STRUCTURES ###
+### 2. DATA STRUCTURES ###
 ##########################
 
 # Structure: Database "Listings"
@@ -190,7 +170,7 @@ gc()
 ######################
 
 # Dataset preparation: 
-test_segmentation = listings %>%
+data_segmentation = listings %>%
   select(host_id, host_since, last_review, price, host_is_superhost, number_of_reviews) %>%
   filter(price != "NA",
          host_is_superhost != "NA",
@@ -210,22 +190,23 @@ test_segmentation = listings %>%
     )
 
 # Assign contact id as row names, remove id from data
-rownames(test_segmentation) = test_segmentation$host_id
-test_segmentation = test_segmentation[, -1]
+rownames(data_segmentation) = data_segmentation$host_id
+data_segmentation = data_segmentation[, -1]
 
 # Perform segmentation on standardized data
 set.seed(10)
-k = kmeans(x = scale(test_segmentation), centers = 5, nstart = 50)
+k = kmeans(x = scale(data_segmentation), centers = 5, nstart = 50)
 
 # Print cluster size, standardized centers, and then un-standardized centers, one segment at a time
 print(k$size)
 print(k$centers)
 for (i in 1:5) {
-  print(colMeans(test_segmentation[k$cluster == i, ]))
+  print(colMeans(data_segmentation[k$cluster == i, ]))
 }
 
 cluster = k[["cluster"]]
-merged_data = cbind(test_segmentation, cluster)
+merged_data = cbind(data_segmentation, cluster)
+rm(data_segmentation)
 gc()
 
 # Clusters colors
@@ -234,8 +215,6 @@ couleurs = c("1" = "hotpink",
              "3" = "blue4",
              "4" = "chocolate4",
              "5" = "chartreuse4")
-
-
 
 # Tableau récap à afficher avant les graphes dans Rshiny (format tableau)
 seg_summary = merged_data %>% 
@@ -249,99 +228,79 @@ seg_summary = merged_data %>%
   mutate(pct_hosts = round(nb_hosts / sum(nb_hosts),2))
 
 
-  
-
-  #relations à représenter : 
-  #Nombre de revues vs superhost 
-  #Nombre de revues vs recency
-  #Monetary vs nombre de revues
-
-  
-  
-#Cluster 1 : Les professionnels -> arrivés relativement récemment sur la plateforme, revues récentes, beaucoup de listings
-#Cluster 2 : Les ambassadors 
-#Cluster 3 : Les early adopters
-#Cluster 4: Les nouveaux qui expérimentent la plateforme
-#Cluster 5: Les losts / particuliers
-  
-
-
-
-
-#Choses à faire : 
-# Ordonner le top N
-# Harmoniser les couleurs
-# Rajouter les inputs
-
-
-
-
 ####################
-### SEGMENTATION ###
+# REVIEWS ANALYSIS #
 ####################
 
-# Objectifs : 
+# Step 1 : Compute the correlation between the rating and listings/hosts characteristics
+corr_listings = listings %>%
+  mutate(is_paris = case_when(city=="Paris"~1, TRUE ~0),
+         is_lyon = case_when(city=="Lyon"~1, TRUE ~0),
+         is_bordeaux = case_when(city=="Bordeaux"~1, TRUE ~0),
+         shared_room = case_when(room_type=="Shared room" ~1, TRUE ~0),
+         entire_home = case_when(room_type=="Entire home/apt" ~1, TRUE ~0),
+         private_room = case_when(room_type=="Private room" ~1, TRUE ~0)) %>%
+  select(review_scores_rating,
+         price, number_of_reviews, is_paris, is_lyon, is_bordeaux,
+         shared_room, entire_home, private_room,
+         host_is_superhost, host_response_rate, host_identity_verified,
+         accommodates, beds, availability_30) %>%
+  cor(use = "complete.obs")
 
-## Comprendre l'offre : 
-# Combien d'annonces ? Comment sont-elles réparties entre les 3 villes FR ? Et dans quels quartiers ?
-# Quelle saisonnalité : le week-end ? l'été ? est-ce qu'on a plus d'annonces à ce moment là ?
-# Quelle fourchette de prix ?
-# Quels quartiers ?
-# Combien de pièces ? salles de bain ?
-# Pour quelle période de temps ?
-# Amenities ?
-# Pour combien de temps ?
-# Review scores : clean, accurate, checkin, comm', location
+# Rounding up the results
+res_listings <- round(corr_listings, 2)
+res_listings
 
+liste = as.data.frame(res_listings) %>% 
+  select(review_scores_rating) %>% 
+  arrange(desc(review_scores_rating))
 
-## Comprendre les hosts :
-# Framework RFM : Recency, Frequency, Monetary, 1st transaction
-# qui sont ceux qui n'ont pas leur ID vérifiée : ceux qui ont rejoint récemment la plateforme
-# Analyse de cohorte
-
-# Comprendre les guests : 
-# Des gens récidivistes ou des one-shots en France ?
-
-
-# Bonus : carte des annonces en utilisant la geoloc
-# en mettant en size le nombre d'annonces et en couleur le prix
-
-# Bonus : corrélation entre les reviews / la localisation et le prix
+object <- rownames(liste)
+liste = liste %>% cbind(object)
 
 
-## Comprendre les reviews
-# Questions : 
-# Combien d'hosts ? Combien ils louent d'apparts en moyenne ? (que des individuels ou des pros) ? A quel prix ?
+# Step 2 : To identify the amenities that bring the most satisfaction
+listings$Pool = grepl("pool",listings$amenities)
+listings$BBQ = grepl("BBQ",listings$amenities)
+listings$Garden = grepl("garden",listings$amenities)
+listings$Balcony = grepl("balcony",listings$amenities)
+listings$Washer = grepl("washer",listings$amenities)
+listings$Dryer = grepl("dryer",listings$amenities)
+listings$Oven = grepl("oven",listings$amenities)
+listings$Fridge = grepl("refrigerator",listings$amenities)
+listings$Microwave = grepl("microwave",listings$amenities)
+listings$Dishwasher = grepl("Dishwasher",listings$amenities)
+listings$Elevator = grepl("Elevator",listings$amenities)
+listings$Freezer = grepl("freezer",listings$amenities)
+listings$Iron = grepl("iron",listings$amenities)
+listings$TV = grepl("TV",listings$amenities)
+listings$Game_console = grepl("Game console",listings$amenities)
+listings$Parking = grepl("parking",listings$amenities)
+listings$Aircon = grepl("Air conditioning",listings$amenities)
+listings$Wifi = grepl("wifi",listings$amenities)
+listings = listings %>% 
+  mutate(sum_amenities =
+           Pool + BBQ + Garden + Balcony +
+           Washer + Dryer + Oven + Fridge + Microwave + Dishwasher + Elevator + 
+           Freezer + Iron + Parking + Aircon + Wifi + Game_console + TV )
+
+corr_amenities = listings %>%
+  select(review_scores_rating,
+         sum_amenities, Pool, BBQ, Garden, Balcony,
+         Washer, Dryer, Oven, Fridge, Microwave, Dishwasher, Elevator , 
+         Freezer, Iron, Parking, Aircon, Wifi, Game_console, TV,
+         ) %>%
+  cor(use = "complete.obs")
+
+# Rounding up the results
+res_amenities <- round(corr_amenities, 2)
+res_amenities
+
+liste_amenities = as.data.frame(res_amenities) %>% 
+  select(review_scores_rating) %>% 
+  arrange(desc(review_scores_rating))
+
+Amenities <- rownames(liste_amenities)
+liste_amenities = liste_amenities %>% cbind(Amenities)
 
 
-
-
-
-
-
-
-
-# Questions : 
-# Combien d'hosts ? Combien ils louent d'apparts en moyenne ? (que des individuels ou des pros) ? A quel prix ?
-
-
-# BAN :  
-# VOLUME : Calculer le nombre de listings 
-# VOLUME : Nombre de reviews
-# VOLUME : Nombre d'hôtes
-# VALEUR : Prix / revenus 
-# Comparaison en % selon la période retenue
-
-# Remarques personnelles sur les variables : 
-# ID : nÂ° unique de l'annonce
-# Name & description : titre de l'annonce et sa description (texte mining)
-# Host id : ID de la personne louant l'appart'
-# Date dÃ©but de l'host : -> sera peut-Ãªtre utile pour de la segmentation
-# Host location : ne vit pas nÃ©cessairement Ã  Paris
-# Stats sur les hosts : temps de rÃ©ponse, taux de rÃ©ponse et taux d'acceptation, superhost
-# host neighborhood -> le quartier
-# host listings count & host total listings count -> ???
-# latitude et longitude
-# CaractÃ©ristiques de l'appart (nombre de lits, salles de bain, amÃ©nitÃ©s, etc)
-# Prix
- 

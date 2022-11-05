@@ -155,6 +155,10 @@ server = function(input, output) {
   # 3. HOSTS CHARACTERISTICS #
   ############################
 
+  output$seg_table <- renderTable({
+    seg_summary
+  }) 
+  
   output$host_seg1 <- renderPlot({
     ggplot(merged_data, 
            aes(x=length_relationship_years, y=recency_months, colour = factor(cluster), fill = factor(cluster))) + 
@@ -187,6 +191,29 @@ server = function(input, output) {
   # 4. GUESTS SATISFACTION #
   ##########################  
   
+  output$SATCLI_listings <- renderPlot({
+    ggplot(liste %>% filter(object!='review_scores_rating'), 
+           aes(x= reorder(object, review_scores_rating),
+               y = review_scores_rating,
+               fill = ifelse(review_scores_rating > 0,'red','green')))+ 
+      coord_flip() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="none") +
+      labs(x = "Object", y= "Correlation with Review scores rating", 
+           title = "Listings from Airbnb superhosts are very appreciated") +
+      geom_col()
+  }) 
+  
+  output$SATCLI_amenities <- renderPlot({
+    ggplot(liste_amenities %>% filter(Amenities!='review_scores_rating'), 
+           aes(x= reorder(Amenities, review_scores_rating),
+               y = review_scores_rating,
+               fill = ifelse(review_scores_rating < 0,'green','red')))+ 
+      coord_flip() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="none") +
+      labs(x = "Amenities", y= "Correlation with Review scores rating", 
+           title = "The more the amenities, the higher the guests satisfaction") +
+      geom_col()
+  })  
   
   
   ##############
@@ -505,17 +532,29 @@ body = dashboardBody(
         HTML('&nbsp;'), tags$em("* Superhost status: "), "Has the host been awarded 'Superhost' by Airbnb?", br(), 
         HTML('&nbsp;'),"In the scatterplots below, more than 53,000 hosts are represented with their relevant cluster in colors.", br(), br(),
         box(width = NULL, background = 'red', "Segments characteristics"),
+        tableOutput('seg_table'),
+        HTML('&nbsp;'),"From the table above, we can interpret the clusters in the following way:", br(),
+        HTML('&nbsp;'), tags$b("* Cluster1: The Professionals"),"(74 hosts). They propose expensive listings (most probably in Paris) and accumulated thousands of reviews (including recent period). Some of them (but not the majority) are considered as superhosts by Airbnb.", br(),
+        HTML('&nbsp;'), tags$b("* Cluster2: The One Shot / Lost hosts"),"(30% of the dataset). The Lost hosts registered years ago on the platform, received only a few reviews that date back from several years ago. Their listings, although quite cheap, do not seem to be enough attractive for guests to make a reservation", br(),
+        HTML('&nbsp;'), tags$b("* Cluster3: The Early Adopters"), "They are very similar to the One-Shot hosts, except that they propose listings that are more expensive and certainly more attractive. Thus, they continue to receive reviews recently.", br(),
+        HTML('&nbsp;'), tags$b("* Cluster4: The Ambassadors"), "(15% of the dataset). They are the group that received the most reviews after the Professionals, and they are all superhosts.", br(),
+        HTML('&nbsp;'), tags$b("* Cluster5: The New Hosts"), "(20% of the dataset). They joined Airbnb only 3 years ago on average (against 7 to 8 years ago for other clusters).", 
+        br(), br(),
+        
         column(width = 6,
+               box(width = NULL, background = 'red', "Recency vs Length of relationship"),
                strong("Insights:"),
                p("In the graph below, 3 clusters are distinctly identifiable. 
-                 The light blue cluster depicts the New hosts: They have been registered on the platform since maximum 5 years, and their last review tends to be recent.
-                 The hotpink cluster represents the Professionals who have been on the Airbnb for a very long time.
-                 The green cluster describes the Early Adopters that are still active nowadays: They registered more than 5 years ago and received reviews in the last few years."),
+                 The New hosts (green) have a small recency and short relationship with Airbnb.
+                 The Early Adopters (purple) have a small recency but a long relationship with Airbnb.
+                 The One-Shot / Lost hosts have a big recency and have registered several years ago on Airbnb.com"),
                plotOutput("host_seg1", width = NULL,height = 350)
         ),
         column(width = 6,
+               box(width = NULL, background = 'red', "Number of listings vs Price"),
                strong("Insights:"),
-               p("XXX"),
+               p("One cluster is very distinct from the others: The Professionals (pink dots) have accumulated lots of reviews"),
+               br(), br(), br(),
                plotOutput("host_seg2", width = NULL,height = 350)
         )
       )
@@ -568,7 +607,31 @@ body = dashboardBody(
     tabItem(
       tabName = "SATCLI",
       fluidRow(
-        "Nothing here yet"
+        p(HTML('&nbsp;'), "What factors are correlated with a higher guests satisfaction ?"),
+        column(width = 6,
+               box(width = NULL, background = 'red', "Listings and Hosts characteristics"),
+               strong("Insights:"),
+               p("Superhosts are not a vain title: 
+               The guests satisfaction is higher when a listing is published by a superhost, that replies quickly and has already received many reviews.
+               Having some privacy thanks to a private room is also correlated to better reviews (contrary to shared rooms).
+               From a geographical point of view, guests in Bordeaux seem more satisfied than those in Paris - most probably because Bordeaux listings offer more amenities than those in Paris.
+               Finally, it is worth noticing that the price does not seem to have an impact on guests satisfaction. 
+                 "),
+               br(),
+               plotOutput("SATCLI_listings", width = NULL,height = 350),
+              
+        ),
+        column(width = 6,
+               box(width = NULL, background = 'red', "Available amenities"),
+               strong("Insights:"),
+               p("The more amenities a listing has, the higher the guests satisfaction. 
+                 Customers seem to value the presence of big appliances such as washers, dishwashers, dryers, etc 
+                 that may be very convenient service for long term stays and a competitive advantage against traditional hotels.
+                 Parking options are also very appreciated. On the other hand, TV, microwave or iron services do not seem to make the difference."),
+               br(), br(), br(),
+               plotOutput("SATCLI_amenities", width = NULL,height = 350),
+        )
+        
       )
     ),
     
