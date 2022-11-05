@@ -300,11 +300,11 @@ server = function(input, output) {
     
     # Reactive inputs (slider)
     data<- reactive({
-     x <- listings_price[listings_price$price>= input$price_range[1] &
-                           listings_price$price <= input$price_range[2],
-                         ]
+      x <- listings_price[listings_price$price>= input$price_range[1] &
+                            listings_price$price <= input$price_range[2],
+      ]
     })
-     
+    
     # Legend of colors
     bins <- c(0, 100, 200, 300, 400, Inf)
     pal <- colorBin("YlOrRd", domain = listings_price$price, bins = bins)
@@ -313,7 +313,7 @@ server = function(input, output) {
     listings_price <- data()
     
     # Map construction
-    m_paris <- leaflet(data = listings_price %>% filter(city=="Paris" & price != "NA")) %>%
+    m_paris <- leaflet(data = listings_price %>% filter(city=="Paris" & price != "NA" & number_of_reviews>1)) %>%
       addTiles() %>%
       addSearchOSM() %>%
       addResetMapButton() %>%
@@ -330,13 +330,13 @@ server = function(input, output) {
                        popup = paste("<h3> Listings info </h3>",
                                      "Listings name: ", listings_price$name,"<br>",
                                      "Listings URL: ", listings_price$listing_url, "<br>",
-                                      "Property type: ", listings_price$property_type,"<br>",
-                                      "Neighbourhood: ", listings_price$neighbourhood_cleansed, "<br>",
-                                      "Price: ", listings_price$price, "<br>",
-                                      "Accommodates: ", listings_price$accommodates, "<br>",
-                                      "Total reviews: ", listings_price$number_of_reviews, "<br>",
-                                      "Review scores: ", listings_price$review_scores_rating, "<br>",
-                                      "Host is superhost: ", listings_price$host_is_superhost, "<br>"
+                                     "Property type: ", listings_price$property_type,"<br>",
+                                     "Neighbourhood: ", listings_price$neighbourhood_cleansed, "<br>",
+                                     "Price: ", listings_price$price, "<br>",
+                                     "Accommodates: ", listings_price$accommodates, "<br>",
+                                     "Total reviews: ", listings_price$number_of_reviews, "<br>",
+                                     "Review scores: ", listings_price$review_scores_rating, "<br>",
+                                     "Host is superhost: ", listings_price$host_is_superhost, "<br>"
                        )
       )
     
@@ -345,8 +345,8 @@ server = function(input, output) {
     
     # Add the color legend
     m_paris %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($)",
-                     position = "bottomleft")
-  
+                          position = "bottomleft")
+    
   })
   
   
@@ -369,7 +369,7 @@ server = function(input, output) {
     listings_price <- data()
     
     # Map construction
-    m_bordeaux <- leaflet(data = listings_price %>% filter(city=="Bordeaux" & price != "NA")) %>%
+    m_bordeaux <- leaflet(data = listings_price %>% filter(city=="Bordeaux" & price != "NA" & number_of_reviews>1)) %>%
       addTiles() %>%
       addSearchOSM() %>%
       addResetMapButton() %>%
@@ -401,7 +401,7 @@ server = function(input, output) {
     
     # Add the color legend
     m_bordeaux %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($)",
-                          position = "bottomleft")
+                             position = "bottomleft")
     
   })
   
@@ -424,7 +424,7 @@ server = function(input, output) {
     listings_price <- data()
     
     # Map construction
-    m_lyon <- leaflet(data = listings_price %>% filter(city=="Lyon" & price != "NA")) %>%
+    m_lyon <- leaflet(data = listings_price %>% filter(city=="Lyon" & price != "NA" & number_of_reviews>1)) %>%
       addTiles() %>%
       addSearchOSM() %>%
       addResetMapButton() %>%
@@ -456,10 +456,9 @@ server = function(input, output) {
     
     # Add the color legend
     m_lyon %>% addLegend(pal = pal, values = ~price, opacity = 0.7, title="Price ($)",
-                             position = "bottomleft")
+                         position = "bottomleft")
     
   })
-  
   
   
 }
@@ -481,9 +480,7 @@ sidebar = dashboardSidebar(
               menuItem(text = "Overview", tabName = "gen_fig"),
               menuItem(text = "Listings", tabName ="listings_characteristics"),
               menuItem(text = "Pricing", tabName ="pricing"),
-              menuItem(text = "Map: Paris", tabName ="map_paris"),
-              menuItem(text = "Map: Bordeaux", tabName ="map_bordeaux"),
-              menuItem(text = "Map: Lyon", tabName ="map_lyon"),
+              menuItem(text = "Maps", tabName ="map"),
               menuItem(text = "Hosts segmentation", tabName ="hosts_segmentation"),
               menuItem(text = "Review scores", tabName ="SATCLI"),
               menuItem(text = "About", tabName = "about")
@@ -590,21 +587,21 @@ body = dashboardBody(
       )
     ),
     
-    # Map Paris page contains...
+    # Map page contains...
     tabItem(
-      tabName = "map_paris",
+      tabName = "map",
       fluidRow(
         p(HTML('&nbsp;'), "Disclaimer: The maps may need some time to load on the page (about 15 seconds). You may also open other tabs while waiting for the page to load."),
         p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing: the bigger the more reviews received by the listing. 
           The color represents the price (in $): the darker the more expensive. You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
         br(),
-        column(width = 12,
+        column(width = 6,
                box(width = NULL, background = 'red', "Map: Paris"),
                absolutePanel(top =0.6, left = 0.1,
                              sliderInput("price_range", "Price",
                                          min(listings_price$price), max(listings_price$price),
                                          value=range(listings_price$price), step=50)
-               ),
+                             ),
                br(),
                strong("Insights"),
                p("Airbnb listings cover Paris 'intra muros' as well as the inner suburbs.
@@ -612,42 +609,17 @@ body = dashboardBody(
                Indeed, the most expensive listings (red circles) tend to be located in very Central Paris, near the touristic spots (Champs-Elysees, Le Louvre, jardin des Tuileries, etc).
                "),
                leafletOutput("map_Paris")
-        )
-      )
-    ),
-    # Map Lyon page contains...
-    tabItem(
-      tabName = "map_lyon",
-      fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: The maps may need some time to load on the page (about 15 seconds). You may also open other tabs while waiting for the page to load."),
-        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing: the bigger the more reviews received by the listing. 
-          The color represents the price (in $): the darker the more expensive. You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
-        br(),
-        column(width = 12,
+        ),
+        column(width = 6,
                box(width = NULL, background = 'red', "Map: Lyon"),
-               absolutePanel(top =0.6, left = 0.1,
-                             sliderInput("price_range", "Price",
-                                         min(listings_price$price), max(listings_price$price),
-                                         value=range(listings_price$price), step=50)
-               ),
                br(),
                strong("Insights"),
                p("Compared to Paris, Lyon has very few listings with prices exceeding $200 (few red circles). 
                  Moreover, the latter seem to be located in the West outskirts of Lyon, instead of being centralized in the heart of the city.
                  Finally, there are much fewer listings with many reviews associated (small circles)."),
                br(),
-               leafletOutput("map_Lyon")
-        ))),
-    
-    # Map Bordeaux page contains...
-    tabItem(
-      tabName = "map_bordeaux",
-      fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: The maps may need some time to load on the page (about 15 seconds). You may also open other tabs while waiting for the page to load."),
-        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing: the bigger the more reviews received by the listing. 
-          The color represents the price (in $): the darker the more expensive. You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
-        br(),
-        column(width = 12,
+               leafletOutput("map_Lyon"),
+               br(),
                box(width = NULL, background = 'red', "Map: Bordeaux"),
                strong("Insights"),
                p("As for Lyon, Bordeaux has much fewer expensive listings compared to Paris. 
@@ -655,10 +627,11 @@ body = dashboardBody(
                  First, it seems that some listings in the central district receive many reviews.
                  Secondly, the listings are much more spread out geographically: there are quite a lot Airbnb listings in the outskirts of Bordeaux."),
                leafletOutput("map_Bordeaux")
-               )
+        )
       )
     ),
     
+
     # SATCLI page contains...
     tabItem(
       tabName = "SATCLI",
