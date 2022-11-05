@@ -9,13 +9,15 @@
 
 ### INTRODUCTION ###
 
-# This code provides the main structure of the Rshiny app: a server, a UI and the connection between the 2.
+# This code provides the main structure of the Rshiny app: a server, a UI and the connection between the two.
 # The data that are used by the app are collected and prepared in another R code.
+# Data source credits: Airbnbinside.com
 
 #setwd("~/Documents/Formation/Github/Airbnb_Database_Rstudio")
 
-# Load packages
-#library(rsconnect)
+# Load R packages
+library(rsconnect)
+library(readr)
 library(scales)
 library(htmlwidgets)
 library(htmltools)
@@ -36,13 +38,36 @@ if (FALSE) {
   library(RSQLite)
   library(dbplyr)}
 
-
 # Load databases
-g = listings
-BAN_listings = BAN_listings
-#gen_figures = gen_figures
+Amenities = read_csv("Amenities.csv")
+BAN_listings = read_csv("BAN_listings.csv")
+BAN_reviews = read_csv("BAN_reviews.csv")
+corr_amenities = read_csv("corr_amenities.csv")
+corr_listings = read_csv("corr_listings.csv")
+# couleurs = read_csv("couleurs.csv")
+df = read_csv("df.csv")
+least_expensive = read_csv("least_expensive.csv")
+liste = read_csv("liste.csv")
+liste_amenities = read_csv("liste_amenities.csv")
+listings = read_csv("listings.csv")
+listings_price = read_csv("listings_price.csv")
+listings_summary = read_csv("listings_summary.csv")
+listings_table = read_csv("listings_table.csv")
+merged_data = read_csv("merged_data.csv")
+most_expensive = read_csv("most_expensive.csv")
+res_amenities = read_csv("res_amenities.csv")
+res_listings = read_csv("res_listings.csv")
+seg_summary = read_csv("seg_summary.csv")
 
-#Disable scientific notation
+couleurs = c("1" = "hotpink",
+             "2" = "darkgoldenrod1",
+             "3" = "blue4",
+             "4" = "chocolate4",
+             "5" = "chartreuse4")
+
+
+
+#Disable scientific notation in the graphs
 options(scipen=999)
 
 
@@ -94,9 +119,6 @@ server = function(input, output) {
              , "Average price (in $, one night)", color = "yellow")
   })
   
-  
-  ### 1.2. Overview graphs ###
-  
 
 
   ###############################
@@ -107,7 +129,6 @@ server = function(input, output) {
    output$nb_listings_city <- renderPlot({
       ggplot(data = listings_summary, aes_string(x = "city", y="nb_listings_charac", fill = "city")) +
         geom_col() + 
-        #theme_bw(base_size = 10) + 
         theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="right") +
         geom_text(    aes(label = after_stat(y), group = city), 
                       stat = 'summary', fun = sum, vjust = +2) +
@@ -122,10 +143,10 @@ server = function(input, output) {
      labs(x= "City", y= "Room type", title="At least 75% of listings offer the entire home/apartment service,\n (whatever the city)")
    })  
    
-  #Graph: Top N (appliquer un reorder -> pas d'ordre alphabétique pour x)
+  #Graph: Top N
   output$top_neighbo <- renderPlot({   
    ggplot(data = top_n(listings_summary, n=5, nb_listings_charac), 
-         aes_string(x = "city_neighbourhood_cleansed", y="nb_listings_charac", fill = "city_neighbourhood_cleansed")) +
+         aes(x = reorder(city_neighbourhood_cleansed, nb_listings_charac), y=nb_listings_charac, fill = city_neighbourhood_cleansed)) +
       geom_col() + 
       coord_flip() +
       theme(plot.title = element_text(hjust = 0.5, face = "bold"), legend.position="right") +
@@ -155,10 +176,12 @@ server = function(input, output) {
   # 3. HOSTS CHARACTERISTICS #
   ############################
 
+  # 3.1. Table about the characteristics of each cluster
   output$seg_table <- renderTable({
     seg_summary
   }) 
   
+  # 3.2. Length of relationship vs Reviews recency
   output$host_seg1 <- renderPlot({
     ggplot(merged_data, 
            aes(x=length_relationship_years, y=recency_months, colour = factor(cluster), fill = factor(cluster))) + 
@@ -173,6 +196,7 @@ server = function(input, output) {
   
   }) 
   
+  # 3.3. Number of reviews vs Price
   output$host_seg2 <- renderPlot({
   ggplot(merged_data, 
          aes(x=monetary, y=number_of_reviews, colour = factor(cluster), fill = factor(cluster))) + 
@@ -191,6 +215,7 @@ server = function(input, output) {
   # 4. GUESTS SATISFACTION #
   ##########################  
   
+  # Correlation (listings & hosts characteristics)
   output$SATCLI_listings <- renderPlot({
     ggplot(liste %>% filter(object!='review_scores_rating'), 
            aes(x= reorder(object, review_scores_rating),
@@ -203,6 +228,7 @@ server = function(input, output) {
       geom_col()
   }) 
   
+  # Correlation (Amenities)
   output$SATCLI_amenities <- renderPlot({
     ggplot(liste_amenities %>% filter(Amenities!='review_scores_rating'), 
            aes(x= reorder(Amenities, review_scores_rating),
@@ -455,7 +481,9 @@ sidebar = dashboardSidebar(
               menuItem(text = "Overview", tabName = "gen_fig"),
               menuItem(text = "Listings", tabName ="listings_characteristics"),
               menuItem(text = "Pricing", tabName ="pricing"),
-              menuItem(text = "Maps", tabName ="map"),
+              menuItem(text = "Map: Paris", tabName ="map_paris"),
+              menuItem(text = "Map: Bordeaux", tabName ="map_bordeaux"),
+              menuItem(text = "Map: Lyon", tabName ="map_lyon"),
               menuItem(text = "Hosts segmentation", tabName ="hosts_segmentation"),
               menuItem(text = "Review scores", tabName ="SATCLI"),
               menuItem(text = "About", tabName = "about")
@@ -508,7 +536,7 @@ body = dashboardBody(
                   The second most common choice is the private room. As far as shared rooms and hotel rooms are concerned, they do not seem to be popular options on Airbnb France"),
                 br(),
                 plotOutput("listings_mosaic", width = NULL,height = 350),
-                br(),
+                br(), br(),
                 strong("Insights:"),
                 p("The wordcloud indicates that amenities very often include a Wifi connection and safety elements (smoke alarm). 
                   Hosts also emphasize services that are usually not available in hotels,
@@ -528,14 +556,14 @@ body = dashboardBody(
         HTML('&nbsp;'), tags$em("* Recency: "), "When was the last time the host received a customer review on one of his/her listings ? (in months)", br(),
         HTML('&nbsp;'), tags$em("* Frequency: "),"How many reviews did the host receive in total?", br(),
         HTML('&nbsp;'), tags$em("* Monetary: "), "What is the average price of a listing (excluding service and cleaning fees)?", br(),
-        HTML('&nbsp;'), tags$em("* The length of relationship: "), "For how long has the hosts been on Airbnb.com (in years) ?", br(),
+        HTML('&nbsp;'), tags$em("* The length of relationship: "), "For how long has the host been on Airbnb.com (in years) ?", br(),
         HTML('&nbsp;'), tags$em("* Superhost status: "), "Has the host been awarded 'Superhost' by Airbnb?", br(), 
         HTML('&nbsp;'),"In the scatterplots below, more than 53,000 hosts are represented with their relevant cluster in colors.", br(), br(),
         box(width = NULL, background = 'red', "Segments characteristics"),
         tableOutput('seg_table'),
         HTML('&nbsp;'),"From the table above, we can interpret the clusters in the following way:", br(),
-        HTML('&nbsp;'), tags$b("* Cluster1: The Professionals"),"(74 hosts). They propose expensive listings (most probably in Paris) and accumulated thousands of reviews (including recent period). Some of them (but not the majority) are considered as superhosts by Airbnb.", br(),
-        HTML('&nbsp;'), tags$b("* Cluster2: The One Shot / Lost hosts"),"(30% of the dataset). The Lost hosts registered years ago on the platform, received only a few reviews that date back from several years ago. Their listings, although quite cheap, do not seem to be enough attractive for guests to make a reservation", br(),
+        HTML('&nbsp;'), tags$b("* Cluster1: The Professionals"),"(74 hosts). They propose expensive listings (most probably in Paris) and accumulated thousands of reviews (including recently). Some of them (but not the majority) are considered as superhosts by Airbnb.", br(),
+        HTML('&nbsp;'), tags$b("* Cluster2: The One Shot / Lost hosts"),"(30% of the dataset). The Lost hosts registered years ago on the platform, received only a few reviews that have been written several years ago. Their listings, although quite cheap, do not seem to be attractive enough for guests to make a reservation", br(),
         HTML('&nbsp;'), tags$b("* Cluster3: The Early Adopters"), "They are very similar to the One-Shot hosts, except that they propose listings that are more expensive and certainly more attractive. Thus, they continue to receive reviews recently.", br(),
         HTML('&nbsp;'), tags$b("* Cluster4: The Ambassadors"), "(15% of the dataset). They are the group that received the most reviews after the Professionals, and they are all superhosts.", br(),
         HTML('&nbsp;'), tags$b("* Cluster5: The New Hosts"), "(20% of the dataset). They joined Airbnb only 3 years ago on average (against 7 to 8 years ago for other clusters).", 
@@ -547,27 +575,30 @@ body = dashboardBody(
                p("In the graph below, 3 clusters are distinctly identifiable. 
                  The New hosts (green) have a small recency and short relationship with Airbnb.
                  The Early Adopters (purple) have a small recency but a long relationship with Airbnb.
-                 The One-Shot / Lost hosts have a big recency and have registered several years ago on Airbnb.com"),
+                 The One-Shot / Lost hosts have a big recency and have registered several years ago on Airbnb.com.
+                 Finally, the Ambassadors (light brown) received recent reviews and joined Airbnb at various periods"),
                plotOutput("host_seg1", width = NULL,height = 350)
         ),
         column(width = 6,
                box(width = NULL, background = 'red', "Number of listings vs Price"),
                strong("Insights:"),
-               p("One cluster is very distinct from the others: The Professionals (pink dots) have accumulated lots of reviews"),
+               p("One cluster is very distinct from the others: The Professionals (pink dots) have accumulated lots of reviews. 
+                 All the hosts in other clusters have received less than thousands of reviews."),
                br(), br(), br(),
                plotOutput("host_seg2", width = NULL,height = 350)
         )
       )
     ),
     
-    # Map page contains...
+    # Map Paris page contains...
     tabItem(
-      tabName = "map",
+      tabName = "map_paris",
       fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: Please kindly wait for about 10 seconds as the maps need time to load. You may also open other tabs while waiting for the page to load."),
-        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing. The color represents the price (in $). You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
+        p(HTML('&nbsp;'), "Disclaimer: The maps may need some time to load on the page (about 15 seconds). You may also open other tabs while waiting for the page to load."),
+        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing: the bigger the more reviews received by the listing. 
+          The color represents the price (in $): the darker the more expensive. You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
         br(),
-        column(width = 6,
+        column(width = 12,
                box(width = NULL, background = 'red', "Map: Paris"),
                absolutePanel(top =0.6, left = 0.1,
                              sliderInput("price_range", "Price",
@@ -581,22 +612,47 @@ body = dashboardBody(
                Indeed, the most expensive listings (red circles) tend to be located in very Central Paris, near the touristic spots (Champs-Elysees, Le Louvre, jardin des Tuileries, etc).
                "),
                leafletOutput("map_Paris")
-        ),
-        column(width = 6,
+        )
+      )
+    ),
+    # Map Lyon page contains...
+    tabItem(
+      tabName = "map_lyon",
+      fluidRow(
+        p(HTML('&nbsp;'), "Disclaimer: The maps may need some time to load on the page (about 15 seconds). You may also open other tabs while waiting for the page to load."),
+        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing: the bigger the more reviews received by the listing. 
+          The color represents the price (in $): the darker the more expensive. You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
+        br(),
+        column(width = 12,
                box(width = NULL, background = 'red', "Map: Lyon"),
+               absolutePanel(top =0.6, left = 0.1,
+                             sliderInput("price_range", "Price",
+                                         min(listings_price$price), max(listings_price$price),
+                                         value=range(listings_price$price), step=50)
+               ),
                br(),
                strong("Insights"),
                p("Compared to Paris, Lyon has very few listings with prices exceeding $200 (few red circles). 
                  Moreover, the latter seem to be located in the West outskirts of Lyon, instead of being centralized in the heart of the city.
                  Finally, there are much fewer listings with many reviews associated (small circles)."),
                br(),
-               leafletOutput("map_Lyon"),
-               br(),
+               leafletOutput("map_Lyon")
+        ))),
+    
+    # Map Bordeaux page contains...
+    tabItem(
+      tabName = "map_bordeaux",
+      fluidRow(
+        p(HTML('&nbsp;'), "Disclaimer: The maps may need some time to load on the page (about 15 seconds). You may also open other tabs while waiting for the page to load."),
+        p(HTML('&nbsp;'), "Map interpretation: The size of the circles represent the number of reviews received by the listing: the bigger the more reviews received by the listing. 
+          The color represents the price (in $): the darker the more expensive. You may select a range of prices ($) in the slider below if you want to filter out some listings from the maps."),
+        br(),
+        column(width = 12,
                box(width = NULL, background = 'red', "Map: Bordeaux"),
                strong("Insights"),
-               p("As for Lyon, there are much fewer expensive listings in Bordeaux than in Paris. 
+               p("As for Lyon, Bordeaux has much fewer expensive listings compared to Paris. 
                  But, the Bordeaux market differs from the Lyon market on 2 aspects. 
-                 First, it seems that some listings in the central district receive many reviews - whereas Lyon listings tend to have less than 5 reviews on average.
+                 First, it seems that some listings in the central district receive many reviews.
                  Secondly, the listings are much more spread out geographically: there are quite a lot Airbnb listings in the outskirts of Bordeaux."),
                leafletOutput("map_Bordeaux")
                )
@@ -612,9 +668,9 @@ body = dashboardBody(
                box(width = NULL, background = 'red', "Listings and Hosts characteristics"),
                strong("Insights:"),
                p("Superhosts are not a vain title: 
-               The guests satisfaction is higher when a listing is published by a superhost, that replies quickly and has already received many reviews.
+               The guests satisfaction is higher when a listing is published by a superhost, especially when he/she replies quickly and has already received many reviews.
                Having some privacy thanks to a private room is also correlated to better reviews (contrary to shared rooms).
-               From a geographical point of view, guests in Bordeaux seem more satisfied than those in Paris - most probably because Bordeaux listings offer more amenities than those in Paris.
+               From a geographical point of view, guests in Bordeaux seem more satisfied than those in Paris.
                Finally, it is worth noticing that the price does not seem to have an impact on guests satisfaction. 
                  "),
                br(),
@@ -625,8 +681,8 @@ body = dashboardBody(
                box(width = NULL, background = 'red', "Available amenities"),
                strong("Insights:"),
                p("The more amenities a listing has, the higher the guests satisfaction. 
-                 Customers seem to value the presence of big appliances such as washers, dishwashers, dryers, etc 
-                 that may be very convenient service for long term stays and a competitive advantage against traditional hotels.
+                 Customers seem to value big appliances such as washers, dishwashers, dryers, etc. 
+                 They may be very convenient service for long term stays and a competitive advantage against traditional hotels.
                  Parking options are also very appreciated. On the other hand, TV, microwave or iron services do not seem to make the difference."),
                br(), br(), br(),
                plotOutput("SATCLI_amenities", width = NULL,height = 350),
@@ -639,7 +695,7 @@ body = dashboardBody(
     tabItem(
       tabName = "pricing",
       fluidRow(
-        p(HTML('&nbsp;'), "Disclaimer: the price information in the underlying data is computed per night and usually does not include service and cleaning fees, so the guest may pay a higher price than the scraped price."),
+        p(HTML('&nbsp;'), "Disclaimer: the price information in the underlying data is computed per night. It usually does not include service and cleaning fees, so the guests may pay a higher price than the scraped price."),
         column(width = 6,
                box(width = NULL, background = 'red', "Pricing vs listings characteristics"),
                strong("Insights:"),
@@ -660,12 +716,12 @@ body = dashboardBody(
         column(width = 6,
                box(width = NULL, background = 'red', "Pricing: Top 5 vs Bottom 5"),
                strong("Insights:"),
-               p("Listings price seems to follow the law of supply and demand. 
-                  For instance, scarce properties such as French castles and historical gites tend to be very pricy.
+               p("Listings prices seem to follow the law of supply and demand. 
+                  For instance, scarce properties such as French castles and historical gites tend to be pricy.
                   Rooms in Parisian boutique hotels are also very expensive: they usually offer an exceptional location in Paris, luxurious family suites,...
                  Finally, the top 3 property types seem to be typos / outliers or even suspicious listings (an ice dome in central Paris ?!)."),
                plotOutput("most_expens", width = NULL,height = 350),
-               br(),
+               br(), br(),
                strong("Insights:"),
                p("Having some privacy and room for oneself costs money. Therefore, the least expensive listings on Airbnb involve shared rooms or even makeshift homes (tents, tipi, windmills)"),
                br(),
@@ -684,6 +740,7 @@ body = dashboardBody(
       fluidRow(
         column(width = 6,
                box(width = NULL, background = 'red', "Credits"),
+               p("Thank you for reading this far! This Rshiny app was designed to give a broad overview about the French Airbnb market."),
                p("Data source: InsideAirbnb.com"),
                p("Data analysis and Rshiny app design: Margot MARCHAIS--MAURICE"),
                p("For further technical details, please visit: https://github.com/MargotMarchais/Airbnb_France_Rstudio")
