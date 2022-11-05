@@ -11,6 +11,7 @@ library(wordcloud)
 #Disable scientific notation
 options(scipen=999)
 
+
 ##########################
 ### 1. Import the data ###
 ##########################
@@ -19,21 +20,31 @@ options(scipen=999)
 
 string = "~/Documents/Formation/Github/0_Data/"
 
-# Paris
+# Listings
 listings_Paris <- read.csv(paste0(string, "Airbnb_Paris/listings.csv"), encoding="UTF-8")
 listings_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/listings.csv"), encoding="UTF-8")
 listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="UTF-8")
+
+reviews_Paris <- read.csv(paste0(string, "Airbnb_Paris/reviews.csv"), encoding="UTF-8")
+reviews_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/reviews.csv"), encoding="UTF-8")
+reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8")
 
 # Add the data source in a column
 listings_Paris = listings_Paris %>% mutate(city = 'Paris')
 listings_Bordeaux = listings_Bordeaux %>% mutate(city = 'Bordeaux')
 listings_Lyon = listings_Lyon %>% mutate(city = 'Lyon')
 
+reviews_Paris = reviews_Paris %>% mutate(city = 'Paris')
+reviews_Bordeaux = reviews_Bordeaux %>% mutate(city = 'Bordeaux')
+reviews_Lyon = reviews_Lyon %>% mutate(city = 'Lyon')
+
 # Objective : Build a centralized dataset for listings, reviews and calendar
 listings = rbind(listings_Paris, listings_Bordeaux, listings_Lyon)
+reviews = rbind(reviews_Paris, reviews_Bordeaux, reviews_Lyon)
 
 # Remove individual files to free memory
-rm(listings_Paris, listings_Bordeaux, listings_Lyon)
+rm(listings_Paris, listings_Bordeaux, listings_Lyon,
+   reviews_Paris, reviews_Bordeaux, reviews_Lyon)
 gc()
 
 
@@ -91,13 +102,13 @@ reviews$year = year(reviews$date)
 
 
 ###########################
-### 4. DATA PREPARATION ###
+### 3. DATA PREPARATION ###
 ###########################
 
 # Objectif: Je veux explorer les données Listings sous Rshiny, avec un dashboard reactif
 summary(listings)
 
-# 4.1 BANS / ordres de grandeur
+# 3.1 BANS / ordres de grandeur
 BAN_listings = listings %>% 
   summarise(nb_listings = n(),
             nb_hosts = n_distinct(host_id),
@@ -110,7 +121,7 @@ BAN_reviews = reviews %>%
   summarise(nb_reviews = n(),
             nb_reviewers = n_distinct(reviewer_id))
 
-# 4.2. Listings charactertistics
+# 3.2. Listings charactertistics
 listings_summary = listings %>% 
   group_by(city, room_type, property_type, neighbourhood_cleansed, accommodates, bedrooms) %>%
   summarise(nb_listings_charac = n()) %>%
@@ -125,7 +136,7 @@ listings = listings %>%
                                        accommodates>= 10 ~ "[More than 9]")
   )
 
-# 4.3 Most and least expensive listings
+# 3.3 Most and least expensive listings
 most_expensive = listings %>% 
   group_by(property_type) %>% 
   summarise(median_price = median(price, na.rm = TRUE),
@@ -165,9 +176,9 @@ gc()
 
 
   
-######################
-# HOSTS SEGMENTATION #
-######################
+#########################
+# 4. HOSTS SEGMENTATION #
+#########################
 
 # Dataset preparation: 
 data_segmentation = listings %>%
@@ -204,6 +215,7 @@ for (i in 1:5) {
   print(colMeans(data_segmentation[k$cluster == i, ]))
 }
 
+#Final segmentation dataset
 cluster = k[["cluster"]]
 merged_data = cbind(data_segmentation, cluster)
 rm(data_segmentation)
@@ -229,10 +241,10 @@ seg_summary = merged_data %>%
 
 
 ####################
-# REVIEWS ANALYSIS #
+# 5. REVIEWS ANALYSIS #
 ####################
 
-# Step 1 : Compute the correlation between the rating and listings/hosts characteristics
+# 5.1 : Compute the correlation between the rating and listings/hosts characteristics
 corr_listings = listings %>%
   mutate(is_paris = case_when(city=="Paris"~1, TRUE ~0),
          is_lyon = case_when(city=="Lyon"~1, TRUE ~0),
@@ -259,7 +271,7 @@ object <- rownames(liste)
 liste = liste %>% cbind(object)
 
 
-# Step 2 : To identify the amenities that bring the most satisfaction
+# 5.2 : To identify the amenities that bring the most satisfaction
 listings$Pool = grepl("pool",listings$amenities)
 listings$BBQ = grepl("BBQ",listings$amenities)
 listings$Garden = grepl("garden",listings$amenities)
