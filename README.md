@@ -33,7 +33,10 @@ In this project, I encountered most of the difficulties in:
    * The maps would be be displayed on the remote app, while it is working perfectly locally
    * etc
 In a nutshell, it took quite some time to make everything work!
+<br />
 
-** Video overview of the end product :**
+**Video overview of the end product:**
+
+
 https://user-images.githubusercontent.com/116331323/200163557-1e13d41b-1bdc-4da7-b9bf-146c78409ea2.mp4
 
