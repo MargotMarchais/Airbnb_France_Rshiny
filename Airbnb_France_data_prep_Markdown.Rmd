@@ -1,0 +1,490 @@
+---
+title: 'Airbnb France : Dataset preparation (R Markdown)'
+author: "Margot MARCHAIS--MAURICE"
+date: "2022-11-05"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This document describes the preparation steps needed to construct the Rshiny app [Airbnb Database Rstudio](https://www.shinyapps.io/admin/#/application/7532802).
+
+Credits data source: Insideairbnb.com
+
+```{r packages, message=FALSE}
+# Import relevant packages
+library(dplyr)
+library(lubridate) 
+library(stringr)
+library(ggplot2)
+library(tm)  
+library(wordcloud)  
+
+setwd("~/Documents/Formation/Github/Airbnb_Database_Rstudio")
+
+#Disable scientific notation
+options(scipen=999)
+```
+
+## 1. Importing the data
+
+Three French cities are available on Airbnbinside.com: Paris, Lyon and Bordeaux. For each city, 3 datasets are available:
+
+-   *Listings*: Information about the listings characteristics and the Airbnb hosts (170 Mo)
+-   *Reviews*: Comments made by guests (600 Mo)
+-   *Calendar*: The future evolution of the price of each listing (1.4 Go)
+
+For the present case study, I chose to analyze mainly the Listings dataset for 2 reasons:
+
+-   The dataset was already very dense and informative (more than 70 columns)
+-   The Rshiny app (free version) sets a limit regarding the size of the dataset (maximum threshold : 1 Go). Thus, I could not join and analyze too many data sources in the same project.
+
+I detail below how I concatenated the different datasets to build a central Listings data set.
+
+```{r pressure, echo = T, results = 'hide'}
+string = "~/Documents/Formation/Github/0_Data/"
+
+# Listings data
+listings_Paris <- read.csv(paste0(string, "Airbnb_Paris/listings.csv"), encoding="UTF-8")
+listings_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/listings.csv"), encoding="UTF-8")
+listings_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/listings.csv"), encoding="UTF-8")
+
+#Reviews data
+reviews_Paris <- read.csv(paste0(string, "Airbnb_Paris/reviews.csv"), encoding="UTF-8")
+reviews_Bordeaux <- read.csv(paste0(string, "Airbnb_Bordeaux/reviews.csv"), encoding="UTF-8")
+reviews_Lyon <- read.csv(paste0(string, "Airbnb_Lyon/reviews.csv"), encoding="UTF-8")
+
+# Add the city in each data source
+listings_Paris = listings_Paris %>% mutate(city = 'Paris')
+listings_Bordeaux = listings_Bordeaux %>% mutate(city = 'Bordeaux')
+listings_Lyon = listings_Lyon %>% mutate(city = 'Lyon')
+
+reviews_Paris = reviews_Paris %>% mutate(city = 'Paris')
+reviews_Bordeaux = reviews_Bordeaux %>% mutate(city = 'Bordeaux')
+reviews_Lyon = reviews_Lyon %>% mutate(city = 'Lyon')
+
+# Build a centralized dataset for listings and reviews 
+listings = rbind(listings_Paris, listings_Bordeaux, listings_Lyon)
+reviews = rbind(reviews_Paris, reviews_Bordeaux, reviews_Lyon)
+
+# Remove individual files to free memory
+rm(listings_Paris, listings_Bordeaux, listings_Lyon,
+   reviews_Paris, reviews_Bordeaux, reviews_Lyon)
+gc()
+```
+
+## 2. Data cleaning
+
+The listings dataset has 76 columns and 83,000+ rows. It contains information about :
+
+-   Listings scraped by Airbnb inside (description, price, number of bedrooms, bathrooms, neighborhood, number of reviews, availability in the near future,... ).
+-   Hosts (name, verified ID, time since he/she joined Airbnb, Superhost status,...).
+
+```{r}
+# Structure of the database "Listings"
+str(listings)
+```
+
+The results show that some columns in the listings dataset do not have the correct format. For instance, there are numerical or date columns that are considered as strings. The format of such columns is corrected so that they can be used for data analysis.
+
+```{r echo = T, results = 'hide', message=FALSE, warning=FALSE}
+# Transform date columns (considered as strings) into date format
+listings <-listings %>%
+  mutate(host_since = ymd(host_since),
+         last_scraped = ymd(last_scraped),
+         calendar_last_scraped = ymd(calendar_last_scraped),
+         first_review = ymd(first_review),
+         last_review = ymd(last_review))
+
+# Tranform percentage columns (considered as strings due to the '%' sign) into floats
+listings$host_response_rate <-gsub("%","", listings$host_response_rate)
+listings$host_acceptance_rate <-gsub("%","", listings$host_acceptance_rate)
+listings$host_response_rate = as.numeric(listings$host_response_rate) /100
+listings$host_acceptance_rate = as.numeric(listings$host_acceptance_rate) /100
+
+#Transform price column (considered as string due to the '$' sign) into & numeric variable
+listings %>% filter(!grepl('$', price)) 
+listings$price <- as.numeric(str_sub(listings$price, 2, -2))
+
+# Transform boolean variables (considered as string) into integer flags
+listings = listings %>% 
+  mutate(instant_bookable = case_when(instant_bookable=='f' ~ 0, instant_bookable=='t' ~ 1),
+         has_availability = case_when(has_availability=='f' ~ 0, has_availability=='t' ~ 1),
+         host_identity_verified = case_when(host_identity_verified=='f' ~ 0, host_identity_verified=='t' ~ 1),
+         host_has_profile_pic = case_when(host_has_profile_pic=='f' ~ 0, host_has_profile_pic=='t' ~ 1),
+         host_is_superhost = case_when(host_is_superhost=='f' ~ 0, host_is_superhost=='t' ~ 1),
+         )
+
+#Transform strings into factors as they are categorical variables
+listings$host_response_time = as.factor(listings$host_response_time)
+listings$room_type = as.factor(listings$room_type)
+listings$property_type = as.factor(listings$property_type)
+listings_table = as.data.frame(table(listings$room_type, listings$property_type))
+
+# Transform IDs into strings
+listings$id = as.character(listings$id)
+listings$host_id = as.character(listings$host_id)
+
+# Finally, some date cleaning in the Reviews dataset
+reviews$date = ymd(reviews$date)
+reviews$year = year(reviews$date)
+
+```
+
+## 3. Data preparation
+
+First, we print some basic descriptive statistics to :
+
+-   Check that every column has the correct format
+-   Understand a bit better the dataset
+
+```{r}
+# Some descriptive statistics about the Listings database
+summary(listings)
+```
+
+Next, we compute some key summary statistics that will be used as BANs on the first Overview tab of the Rshiny app. We compute :
+
+-   The total number of listings available on Airbnb France website (when it was scraped by InsideAirbnb teams)
+-   The number of hosts
+-   The number of big cities
+-   The average review score
+-   The average price (in \$, excluding cleaning and service fees)
+
+```{r}
+# 3.1 BANS / some order of magnitude
+BAN_listings = listings %>% 
+  summarise(nb_listings = n(),
+            nb_hosts = n_distinct(host_id),
+            nb_cities = n_distinct(city),
+            avg_satcli = round(mean(review_scores_rating, na.rm = TRUE),2),
+            avg_price = round(mean(price, na.rm = TRUE),2))
+BAN_listings
+```
+
+We also compute BANs for the Reviews dataset:
+
+-   Total number of reviews made on the French website
+-   Number of guests that made at least one review
+
+```{r}
+BAN_reviews = reviews %>% 
+  filter(year=='2021') %>%
+  summarise(nb_reviews = n(),
+            nb_reviewers = n_distinct(reviewer_id))
+BAN_reviews
+```
+
+Some listings characteristics are also refined:
+```{r echo = T, results = 'hide', message=FALSE, warning=FALSE}
+# 3.2. Listings characteristics
+listings_summary = listings %>% 
+  group_by(city, room_type, property_type, neighbourhood_cleansed, accommodates, bedrooms) %>%
+  summarise(nb_listings_charac = n()) %>%
+  mutate(city_neighbourhood_cleansed = paste(city, "-", neighbourhood_cleansed))
+listings_summary = as.data.frame(listings_summary)
+
+listings$property_type_clean = gsub("Private room in","", listings$property_type)
+listings = listings %>% 
+  mutate(accommodates_bins = case_when(accommodates <3 ~ "[1;2]",
+                                       accommodates>= 3 & accommodates<= 5 ~ "[3;5]",
+                                       accommodates>= 6 & accommodates<= 9 ~ "[6;9]",
+                                       accommodates>= 10 ~ "[More than 9]")
+  )
+```
+
+Moving on to prices, we compute the top 5 / bottom 5 expensive listings by property type. We also include the number of listings to detect whether or not there are some outliers / strange data in the top / bottom results.
+```{r}
+
+# 3.3 Most and least expensive listings
+most_expensive = listings %>% 
+  group_by(property_type) %>% 
+  summarise(median_price = median(price, na.rm = TRUE),
+            avg_price = round(mean(price, na.rm =TRUE),2),
+            nb_listings = n()
+  ) %>%
+  arrange(desc(avg_price)) %>%
+  slice(1:5)
+most_expensive
+
+least_expensive = listings %>% 
+  group_by(property_type) %>% 
+  summarise(median_price = median(price, na.rm = TRUE),
+            avg_price = round(mean(price, na.rm =TRUE),2),
+            nb_listings = n()
+  ) %>%
+  arrange(avg_price) %>%
+  slice(1:5)
+least_expensive
+```
+
+We create a specific dataset that excludes listings with no price associated. We will use this dataset for the maps.
+```{r}
+#Database excluding the few listings with no price specified
+listings_price = listings %>% filter(price != "NA")
+```
+
+Finally, we prepare the wordcloud displaying the most frequent words used in the amenities column. To do so, we remove noise (numbers, punctuation, white spaces, stopwords, etc) and keep only recurring words (frequency > 50) so that the wordcloud is not overcrowded.
+```{r echo = T, results = 'hide', message=FALSE, warning=FALSE}
+#Focus : Wordcloud
+text <- listings$amenities
+docs <- Corpus(VectorSource(text))
+docs <- docs %>%
+   tm_map(removeNumbers) %>%
+   tm_map(removePunctuation) %>%
+   tm_map(stripWhitespace) %>%
+   tm_map(function(x) removeWords(x, stopwords("english")))
+dtm <- TermDocumentMatrix(docs) 
+matrix <- as.matrix(dtm) 
+words <- sort(rowSums(matrix),decreasing=TRUE) 
+df <- data.frame(word = names(words),freq=words)
+df = df %>% filter(freq >50)
+rm(text, docs, dtm, matrix, words)
+gc()
+```
+
+
+## 4. Hosts segmentation
+
+Who are the Airbnb hosts? We want to answer this answer with a segmentation analysis.
+
+We want indeed to categorize hosts into groups so that hosts within a segment are similar enough to be treated similarly, yet different enough from hosts in other segments. 
+
+To do so, the Airbnb hosts are grouped into 5 different clusters thanks to an adapted RFM segmentation (Recency, Frequency, Monetary). The segmentation is performed thanks to the kmeans algorithm due to the size of the underlying data. It takes 5 different variables as input:
+
+* *Recency*: When was the last time the host received a customer review on one of his/her listings ? (in months)
+* *Frequency*: How many reviews did the host receive in total?
+* *Monetary*: What is the average price of a listing (excluding service and cleaning fees)?
+* *The length of relationship*: For how long has the host been on Airbnb.com (in years) ?
+* *Superhost status*: Has the host been awarded 'Superhost' by Airbnb? 
+
+```{r, message= FALSE, warning=FALSE}
+# Dataset preparation: Computing adapted RFM indicators for the listings dataset
+data_segmentation = listings %>%
+  select(host_id, host_since, last_review, price, host_is_superhost, number_of_reviews) %>%
+  filter(price != "NA",
+         host_is_superhost != "NA",
+         !is.na(host_since),
+         !is.na(last_review)) %>%
+  mutate(
+    length_relationship = as.numeric(difftime(Sys.Date(), host_since, units = "days")),
+    recency = as.numeric(difftime(Sys.Date(), last_review, units = "days"))
+  ) %>%
+  group_by(host_id) %>%
+  summarise(
+    length_relationship_years = max(as.integer(length_relationship))/365,
+    recency_months = min(recency)/30,
+    monetary = mean(price, na.rm = TRUE),
+    host_is_superhost = max(host_is_superhost, na.rm=TRUE),
+    number_of_reviews = sum(number_of_reviews, na.rm = TRUE)
+    )
+
+# Assign contact id as row names, remove id from data
+rownames(data_segmentation) = data_segmentation$host_id
+data_segmentation = data_segmentation[, -1]
+
+# Perform kmeans segmentation on standardized data
+set.seed(10)
+k = kmeans(x = scale(data_segmentation), centers = 5, nstart = 50)
+```
+
+We compute the number of hosts in each cluster.
+```{r}
+# Print cluster size
+print(k$size)
+```
+
+We then print the clusters characteristics to interpret them from a business point of view.
+```{r}
+# Print standardized centers, and then un-standardized centers, one segment at a time
+print(k$centers)
+for (i in 1:5) {
+  print(colMeans(data_segmentation[k$cluster == i, ]))
+}
+```
+
+Finally, we build the dataset that will be used for plotting the different segments.
+```{r, echo = T, results = 'hide', message = FALSE, warning= FALSE}
+#Final segmentation dataset
+cluster = k[["cluster"]]
+merged_data = cbind(data_segmentation, cluster)
+rm(data_segmentation)
+gc()
+```
+
+
+```{r}
+# Clusters colors for the graphs
+couleurs = c("1" = "hotpink",
+             "2" = "darkgoldenrod1",
+             "3" = "blue4",
+             "4" = "chocolate4",
+             "5" = "chartreuse4")
+
+# Recap table about clusters characteristics
+seg_summary = merged_data %>% 
+  group_by(cluster) %>% 
+  summarize(nb_hosts = n(),
+            mean_length_relationship = round(mean(length_relationship_years),0),
+            mean_recency = round(mean(recency_months), 0),
+            mean_price = round(mean(monetary),0),
+            pct_superhosts = round(mean(host_is_superhost), 1),
+            mean_number_of_reviews = round(mean(number_of_reviews),0)) %>%
+  mutate(pct_hosts = round(nb_hosts / sum(nb_hosts),2))
+seg_summary
+```
+
+
+## 5. Reviews analysis
+
+In this section, we compute correlations between the reviews score and listings / hosts characteristics. 
+We want to know what factors influence positively (respectively negatively) the guests satisfaction.
+
+### 5.1. Correlation between the rating and listings/hosts characteristics
+
+```{r}
+# 5.1 : Compute the correlation between the rating and listings/hosts characteristics
+corr_listings = listings %>%
+  mutate(is_paris = case_when(city=="Paris"~1, TRUE ~0),
+         is_lyon = case_when(city=="Lyon"~1, TRUE ~0),
+         is_bordeaux = case_when(city=="Bordeaux"~1, TRUE ~0),
+         shared_room = case_when(room_type=="Shared room" ~1, TRUE ~0),
+         entire_home = case_when(room_type=="Entire home/apt" ~1, TRUE ~0),
+         private_room = case_when(room_type=="Private room" ~1, TRUE ~0)) %>%
+  select(review_scores_rating,
+         price, number_of_reviews, is_paris, is_lyon, is_bordeaux,
+         shared_room, entire_home, private_room,
+         host_is_superhost, host_response_rate, host_identity_verified,
+         accommodates, beds, availability_30) %>%
+  cor(use = "complete.obs")
+
+# Rounding up the results
+res_listings <- round(corr_listings, 2)
+res_listings
+```
+
+Preparing the data that will be used for plots:
+```{r}
+liste = as.data.frame(res_listings) %>% 
+  select(review_scores_rating) %>% 
+  arrange(desc(review_scores_rating))
+
+object <- rownames(liste)
+liste = liste %>% cbind(object)
+```
+
+
+### 5.2. Correlation between the rating and available amenities
+
+
+```{r}
+# We create flags for each amenity
+listings$Pool = grepl("pool",listings$amenities)
+listings$BBQ = grepl("BBQ",listings$amenities)
+listings$Garden = grepl("garden",listings$amenities)
+listings$Balcony = grepl("balcony",listings$amenities)
+listings$Washer = grepl("washer",listings$amenities)
+listings$Dryer = grepl("dryer",listings$amenities)
+listings$Oven = grepl("oven",listings$amenities)
+listings$Fridge = grepl("refrigerator",listings$amenities)
+listings$Microwave = grepl("microwave",listings$amenities)
+listings$Dishwasher = grepl("Dishwasher",listings$amenities)
+listings$Elevator = grepl("Elevator",listings$amenities)
+listings$Freezer = grepl("freezer",listings$amenities)
+listings$Iron = grepl("iron",listings$amenities)
+listings$TV = grepl("TV",listings$amenities)
+listings$Game_console = grepl("Game console",listings$amenities)
+listings$Parking = grepl("parking",listings$amenities)
+listings$Aircon = grepl("Air conditioning",listings$amenities)
+listings$Wifi = grepl("wifi",listings$amenities)
+listings = listings %>% 
+  mutate(sum_amenities =
+           Pool + BBQ + Garden + Balcony +
+           Washer + Dryer + Oven + Fridge + Microwave + Dishwasher + Elevator + 
+           Freezer + Iron + Parking + Aircon + Wifi + Game_console + TV )
+```
+
+We then compute correlations with the review score:
+```{r}
+corr_amenities = listings %>%
+  select(review_scores_rating,
+         sum_amenities, Pool, BBQ, Garden, Balcony,
+         Washer, Dryer, Oven, Fridge, Microwave, Dishwasher, Elevator , 
+         Freezer, Iron, Parking, Aircon, Wifi, Game_console, TV,
+         ) %>%
+  cor(use = "complete.obs")
+
+# Rounding up the results
+res_amenities <- round(corr_amenities, 2)
+res_amenities
+```
+
+And we prepare the dataset that will be used for plots:
+```{r}
+liste_amenities = as.data.frame(res_amenities) %>% 
+  select(review_scores_rating) %>% 
+  arrange(desc(review_scores_rating))
+
+Amenities <- rownames(liste_amenities)
+liste_amenities = liste_amenities %>% cbind(Amenities)
+```
+
+
+## 6. Final cleaning / Preparation of the Rshiny app
+
+We keep only the useful objects and reduce the size of dataframes so that the Rshiny app can be published with the free version on shinyapps.io
+```{r}
+# Remove useless objects
+rm(i, k, cluster, object)
+
+#Reduce the size of datasets
+listings_price = listings_price %>%
+  select(id, listing_url, name, property_type, neighbourhood_cleansed, price, city, latitude, longitude,
+         accommodates, number_of_reviews, review_scores_rating, host_is_superhost)
+
+listings = listings %>%
+  select(-starts_with("maximum")) %>%
+  select(-starts_with("calculated")) %>%
+  select(-starts_with("minimum")) %>%
+  select(-c("scrape_id", "last_scraped", "source", "description", 
+            "neighborhood_overview", "neighbourhood","picture_url",
+            "host_url", "host_name", "host_location", "host_about", "host_thumbnail_url", "host_picture_url",
+            "calendar_updated"))
+```
+
+We export all files to csv format. They will be used by the Rshiny app as inputs.
+```{r}
+#Export all data into csv format to integrate them after in the Rshiny app
+write.csv(Amenities, "Amenities.csv", row.names = FALSE)
+write.csv(BAN_listings, "BAN_listings.csv", row.names = FALSE)
+write.csv(BAN_reviews, "BAN_reviews.csv", row.names = FALSE)
+write.csv(corr_amenities, "corr_amenities.csv", row.names = FALSE)
+write.csv(corr_listings, "corr_listings.csv", row.names = FALSE)
+write.csv(couleurs, "couleurs.csv", row.names = FALSE)
+write.csv(df, "df.csv", row.names = FALSE)
+write.csv(least_expensive, "least_expensive.csv", row.names = FALSE)
+write.csv(liste, "liste.csv", row.names = FALSE)
+write.csv(liste_amenities, "liste_amenities.csv", row.names = FALSE)
+write.csv(listings, "listings.csv", row.names = FALSE)
+write.csv(listings_price, "listings_price.csv", row.names = FALSE)
+write.csv(listings_summary, "listings_summary.csv", row.names = FALSE)
+write.csv(listings_table, "listings_table.csv", row.names = FALSE)
+write.csv(merged_data, "merged_data.csv", row.names = FALSE)
+write.csv(most_expensive, "most_expensive.csv", row.names = FALSE)
+write.csv(res_amenities, "res_amenities.csv", row.names = FALSE)
+write.csv(res_listings, "res_listings.csv", row.names = FALSE)
+#write.csv(reviews, "reviews.csv")
+write.csv(seg_summary, "seg_summary.csv", row.names = FALSE)
+```
+
+
+This concludes the preparation of the datasets that will be used as data sources for the Rshiny app.
+
+Feel free to visit the Shinyapps.io website to see the final product: [Airbnb Database Rstudio](https://www.shinyapps.io/admin/#/application/7532802) !
+
