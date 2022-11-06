@@ -19,7 +19,7 @@ library(ggplot2)
 library(tm)  
 library(wordcloud)  
 
-setwd("~/Documents/Formation/Github/Airbnb_Database_Rstudio")
+#setwd("~/Documents/Formation/Github/Airbnb_Database_Rstudio")
 
 #Disable scientific notation
 options(scipen=999)
@@ -117,7 +117,7 @@ reviews$year = year(reviews$date)
 # Some descriptive statistics about the Listings database
 summary(listings)
 
-# 3.1 BANS / ordres de grandeur
+# 3.1 BANS / some order of magnitude
 BAN_listings = listings %>% 
   summarise(nb_listings = n(),
             nb_hosts = n_distinct(host_id),
