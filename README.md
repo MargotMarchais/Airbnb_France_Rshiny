@@ -25,9 +25,9 @@ I detail the preparation of the data, the construction of the web app (server an
 **Learnings:** 
 I made this project to refresh my R and Rshiny skills, and also have some fun while making the kmeans segmentation.
 In this project, I encountered most of the difficulties in:
-* Creating all the data visualizations: It was somewhat painful to code each ggplot graph because I had lots of them to code manually. This project made me realize the incredible power of "drag and drop" BI tools such as Tableau software (that I tend to take for granted at work!).
-* Keeping the code well documented, clean and organized: The code of the Rshiny app may become very easily a hot mess as it is a big file, with lots of objects and easy to forget punctuation (parenthesis, commas,...). While developing the app, I had to commit my changes very often. This allowed me to revert to previous versions of the code if my new changes broke the app.
-* Deploying to production: I have spent several hours stuck and unable to publish my Rshiny web app. There were many error messages that I had to decipher to take action. Some of the errors that I encountered: 
+* Creating all the ggplot data visualizations: This project made me realize the incredible power of "drag and drop" BI tools such as Tableau software (that I tend to take for granted at work!).
+* Keeping the code well documented, clean and organized: The code of the Rshiny app may become very easily a mess as it is a big file, with lots of objects and easy to forget punctuation (parenthesis, commas,...). While developing the app, I had to commit my changes very often. This allowed me to revert to previous versions of the code if my new changes broke the app.
+* Deploying to production: I received many cryptic error messages which prevented me to publish my app and it took time to decipher / solve the problems. Some of the errors that I encountered: 
    * My web app could not find the data sources, therefore it could not display any graph (the import of csv files resolved the problem)
    * My web app had too voluminous data sources (more than 1 Go) and the free version of shinyapps.io refused to host the app (I reduced the size of the data sources by eliminating all the columns that I did not use in the case study, and I gave up the idea to merge my dataset with other data sources). 
    * The maps would be be displayed on the remote app, while it is working perfectly locally
